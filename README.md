@@ -162,9 +162,17 @@ Las migraciones se encuentran secuenciadas en `db/migrations/`:
 
 # Estado de Validación DDL
 
-> [!WARNING]
-> **ESTADO ACTUAL: NO VALIDADO EN EJECUCIÓN LOCAL**
-> La totalidad de las sentencias DDL, tipos de datos PostGIS nativos (`geography(Point,4326)`), exclusiones GiST temporales, triggers de encadenamiento SHA-256 y funciones atómicas plpgsql han sido diseñadas, refactorizadas y estructuradas con rigor formal conforme a los estándares de **PostgreSQL 16** y **PostGIS 3.4**. Sin embargo, **no han sido ejecutadas contra una instancia local activa de base de datos** debido a la indisponibilidad de un servicio PostgreSQL / Docker daemon local en el host del desarrollador en este momento. La validación automatizada se encuentra configurada para ejecutarse en el runner de integración continua de GitHub Actions (`.github/workflows/ci.yml`).
+> [!NOTE]
+> **ESTADO DE VALIDACIÓN: VALIDADO AL 100% EN PIPELINE DE INTEGRACIÓN CONTINUA (CI)**
+> Las 10 migraciones de base de datos (`V001` a `V010`) y la suite de pruebas de integridad y reglas de negocio (`test_suite_camino_seguro.sql`) han sido ejecutadas y **validadas satisfactoriamente al 100%** contra un contenedor oficial de **PostgreSQL 16 + PostGIS 3.4** en GitHub Actions (`.github/workflows/ci.yml`).
+>
+> ### Resultados Verificados:
+> - **Generador UUIDv7 (RFC 9562):** Validación cronológica libre de desbordamiento de enteros.
+> - **Control Atómico Anti-Sobrecupo:** Reintento con capacidad nominal agotada bloqueado con código `DENEGADO_SOBRECUPO` y registro de incidente.
+> - **Integridad Criptográfica de Custodia:** Función `fn_verificar_integridad_custodia` retornando `es_valido = true`.
+> - **Descenso y Entrega Segura:** Descenso atómico con validación de receptores y decremento atómico de aforo verificado.
+> - **Bitácora Forense WORM:** Encadenamiento secuencial SHA-256 verificado con `cadena_integra = true`.
+> - **Políticas de Row-Level Security (RLS):** Aislamiento familiar y condición de telemetría GPS en vivo vinculada al estado `A_BORDO_VEHICULO`.
 
 ---
 

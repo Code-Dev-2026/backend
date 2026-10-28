@@ -1,0 +1,52 @@
+name: Requerimiento / Característica Backend
+description: Propón una nueva funcionalidad o caso de uso backend trazable al SRS v2.0.
+title: "feat(<módulo>): <descripción concisa>"
+labels: ["type:feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Camino Seguro — Plantilla de Requerimiento Backend
+        Por favor diligencia cada sección asegurando trazabilidad con el SRS v2.0 y principios SOLID.
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexto
+      description: Antecedentes del dominio y justificación en la operación de transporte escolar.
+    validations:
+      required: true
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objetivo
+      description: Qué se busca lograr y cuál es el resultado de negocio esperado.
+    validations:
+      required: true
+  - type: textarea
+    id: srs_requirements
+    attributes:
+      label: Requisitos SRS v2.0
+      description: Lista explícita de RF-xx, RN-xx, RNF-xx o HU-xx. Si es propuesta arquitectónica, marca como [PROPUESTA].
+    validations:
+      required: true
+  - type: textarea
+    id: solid_principles
+    attributes:
+      label: Principios SOLID Aplicados
+      description: Detalla cómo se aplican SRP, OCP, LSP, ISP y DIP en este diseño.
+    validations:
+      required: true
+  - type: textarea
+    id: security_criteria
+    attributes:
+      label: Criterios de Seguridad (OWASP ASVS L2)
+      description: Control de acceso RBAC, validación de entrada, blind index o inmutabilidad requerida.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Criterios de Aceptación (BDD / Gherkin)
+      description: Escenarios Dado / Cuando / Entonces.
+    validations:
+      required: true

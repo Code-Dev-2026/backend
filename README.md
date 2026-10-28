@@ -1,268 +1,228 @@
 # Camino Seguro — Backend Core API & Telemetry Engine
 
-[![NestJS](https://img.shields.io/badge/Framework-NestJS%2010+-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
-[![TypeScript](https://img.shields.io/badge/Language-TypeScript%205.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%2016%20%2B%20PostGIS-336791?logo=postgresql&logoColor=white)](https://postgis.net/)
-[![Socket.IO](https://img.shields.io/badge/RealTime-Socket.IO%204.x-010101?logo=socketdotio&logoColor=white)](https://socket.io/)
-[![MQTT](https://img.shields.io/badge/IoT-MQTT%20Telemetry-660066?logo=eclipsemosquitto&logoColor=white)](https://mqtt.org/)
-[![Architecture](https://img.shields.io/badge/Architecture-Clean%20%2F%20Hexagonal%20(Ports%20%26%20Adapters)-blue)](#arquitectura-y-principios-solid)
-[![SOLID](https://img.shields.io/badge/Design-100%25%20SOLID%20Compliant-success)](#arquitectura-y-principios-solid)
-
-Plataforma backend de alto rendimiento encargada de centralizar la lógica de negocio, gobernanza de seguridad, ingesta telemática vehicular IoT y procesamiento geoespacial para el sistema **"Camino Seguro"** del **Colegio San Benito del Otún**, operado en convenio con **Transportes Camino Seguro S.A.S.** en Pereira, Risaralda.
-
----
-
-## 1. Propósito
-
-El propósito de este servicio backend es actuar como la **Única Fuente de Verdad (Single Source of Truth - SSOT)** institucional para la cadena de custodia de menores y la operación del transporte escolar, erradicando los riesgos derivados de la asimetría de información, el registro en planillas manuales, la improvisación en canales no oficiales (grupos de WhatsApp) y los bloqueos injustificados en vía pública.
-
-Mediante una arquitectura desacoplada, orientada a eventos e inmutable, el backend garantiza:
-1. **Seguridad y Certeza en Custodia:** Modelado estricto del ciclo de vida diario del estudiante como una máquina de estados finitos inalterable con verificación visual biométrica del receptor legal y alertas rojas judiciales bloqueantes.
-2. **Control Operativo Inteligente:** Eliminación absoluta del sobrecupo en vehículos mediante validaciones transaccionales en tiempo real, gestión de pasajeros ocasionales y trazado de rutas con paradas oficiales inmutables.
-3. **Monitoreo Satelital No Intrusivo:** Procesamiento de telemetría proveniente exclusivamente de hardware GPS fijo vehicular vía MQTT/PostGIS, detectando desvíos de ruta (>300m) y calculando tiempos estimados de arribo (ETA).
-4. **Protección Legal y Ética:** Cumplimiento riguroso de la Ley Estatutaria 1581 de 2012 (Habeas Data de Menores) y desacoplamiento absoluto de la cobranza financiera frente al abordaje físico.
+[![CI & Security](https://github.com/Code-Dev-2026/backend/actions/workflows/ci.yml/badge.svg)](https://github.com/Code-Dev-2026/backend/actions/workflows/ci.yml)
+[![Node.js](https://img.shields.io/badge/Node.js-20.x%20LTS-339933?logo=node.js)](https://nodejs.org/)
+[![Framework](https://img.shields.io/badge/Framework-NestJS%2010.x-E0234E?logo=nestjs)](https://nestjs.com/)
+[![Database](https://img.shields.io/badge/Database-PostgreSQL%2016%20%2B%20PostGIS%203.4-336791?logo=postgresql)](https://www.postgresql.org/)
+[![RealTime](https://img.shields.io/badge/RealTime-Socket.IO%204.x-010101?logo=socketdotio)](https://socket.io/)
+[![IoT Telemetry](https://img.shields.io/badge/IoT-MQTT%20Protocol-660066?logo=eclipse-mosquitto)](https://mqtt.org/)
+[![Security](https://img.shields.io/badge/Security-OWASP%20ASVS%20L2-00599C)](https://owasp.org/www-project-application-security-verification-standard/)
+[![Design](https://img.shields.io/badge/SOLID-100%25%20Compliant-success)](https://en.wikipedia.org/wiki/SOLID)
 
 ---
 
-## 2. Alcance
+# Propósito
 
-El backend cubre el **100% de los requerimientos y reglas de negocio del SRS v2.0**, distribuidos en 5 módulos funcionales y una capa transversal de arquitectura no funcional:
+El sistema **Camino Seguro** es una plataforma integral de misión crítica concebida para salvaguardar la **cadena de custodia física y digital de menores de edad** en el transporte escolar del **Colegio San Benito del Otún** (Pereira, Risaralda), operado en convenio con la empresa **Transportes Camino Seguro S.A.S.**.
 
-### 2.1 Módulos Funcionales (RF-01 al RF-20)
-- **Módulo 1: Gestión Unificada de Estudiantes y Rutas (RF-01, RF-02, RF-03, RF-04, RF-17, RF-18):**
-  - Ingesta digital y cruce masivo de matrículas escolares contra cupos vehiculares; prevención de duplicados (`RF-01`).
-  - Control de asistencia por escaneo y decodificación de token QR institucional en < 2 segundos (`RF-02`).
-  - Validación transaccional de capacidad nominal vehicular; denegación dura del abordaje N+1 (`RF-03`).
-  - Asignación condicionada de pasajeros ocasionales sujeta a inasistencia previa reportada con >= 2 horas de anticipación (`RF-04`).
-  - Planificación y trazado vectorial de rutas con paradas georreferenciadas (`ST_Point`) y polilíneas oficiales (`RF-17`).
-  - Detección automática en streaming de desvíos superiores a 300 metros sobre la polilínea oficial (`RF-18`).
-
-- **Módulo 2: Custodia, Entregas y Protocolos de Seguridad (RF-05, RF-06, RF-07, RF-08):**
-  - Almacenamiento cifrado (AES-256) de fichas de custodia (hasta 3 adultos legitimados por menor con fotos y documentos) (`RF-05`).
-  - Verificación digital en parada antes del cambio de estado a "Entregado", ligando el evento al ID del adulto presente (`RF-06`).
-  - Despliegue de alertas rojas bloqueantes ante sentencias u órdenes judiciales de restricción de custodia (`RF-07`).
-  - Activación automatizada del protocolo de contingencia por desembarque fallido tras 3 minutos de cortesía y retorno seguro al colegio (`RF-08`).
-
-- **Módulo 3: Monitoreo GPS, Telemetría y Mapa en Tiempo Real (RF-09, RF-10, RF-11, RF-19):**
-  - Ingesta telemática satelital vía MQTT cada 5 segundos desde hardware M2M fijo sin invadir dispositivos de transportistas (`RF-09`).
-  - Endpoint de sincronización asíncrona idempotente con colas FIFO para paquetes capturados en zonas sin cobertura (`RF-10`).
-  - Algoritmo geoespacial para cálculo de cercas virtuales y estimación de llegada (ETA 5 a 10 min) (`RF-11`).
-  - Gateway WebSocket con **privacidad diferencial por rol**: visibilidad exclusiva del bus donde viaja el hijo y apagado automático post-entrega (`RF-19`).
-
-- **Módulo 4: Comunicación Institucional, Notificaciones Push y Alertas (RF-12, RF-13, RF-14, RF-20):**
-  - Despacho institucional segmentado y masivo con auditoría de entrega, erradicando chats informales (`RF-12`).
-  - Matriz de roles e intervención superior con MFA para la Coordinadora de Convivencia (`RF-13`).
-  - Alerta preventiva automatizada 500m antes de entrar a zonas de sombra celular homologadas (ej. La Virginia) (`RF-14`).
-  - Motor de notificaciones transaccionales automáticas con latencia < 2.5s ante transiciones de estado (`RF-20`).
-
-- **Módulo 5: Gestión Administrativa y Cartera (RF-15, RF-16):**
-  - Desacoplamiento total de cartera: el backend prohíbe taxativamente bloqueos o discriminación en el abordaje por mora financiera (`RF-15`).
-  - Generación de bitácoras de auditoría forense inmutables exportables a PDF con firma digital y Excel (`RF-16`).
-
-### 2.2 Requisitos No Funcionales (RNF) y Reglas de Negocio (RN)
-- **Seguridad (RNF-01, RNF-08, RNF-09):** TLS 1.3, AES-256 en reposo, firmas HMAC-SHA256 para eventos de custodia, soft-delete estricto con hash forense e inmutabilidad en base de datos.
-- **Rendimiento & SLA (RNF-03, RNF-05):** Disponibilidad del 99.9% en franja 05:00 a 19:30, latencia push < 2.5 segundos.
-- **Resiliencia (RNF-06):** Soporte de sincronización offline con buffer transaccional > 12 horas sin colisiones.
-- **Reglas Duras (RN-01 a RN-07):** Identificación exclusiva por QR institucional; Cero sobrecupo absoluto; Invitaciones ocasionales solo por inasistencia previa; Protección legal de custodia intransigente; Inmunidad operativa por mora; Paradas oficiales inmutables en marcha; Privacidad temporal de mapa en vivo.
-
-### 2.3 Exclusiones Explícitas (Fuera de Alcance)
-- Hardware biométrico dactilar/facial físico empotrado en el bus.
-- Inmovilización o corte de ignición remota del vehículo por causales financieras.
-- Salas de chat libre bidireccional entre acudientes y conductores.
+El backend constituye el núcleo de gobernanza, orquestación telemática vehicular, control transaccional de abordajes y descensos mediante códigos QR dinámicos, auditoría forense inmutable basada en encadenamiento criptográfico y despacho de eventos en tiempo real hacia las familias y la coordinación institucional.
 
 ---
 
-## 3. Objetivos
+# Alcance
 
-### 3.1 Objetivo General
-Diseñar, implementar y desplegar una plataforma backend basada en NestJS, TypeScript, PostgreSQL/PostGIS y WebSockets con arquitectura Hexagonal y cumplimiento estricto de los principios SOLID, garantizando un SLA del 99.9%, latencia inferior a 2.5s y la protección inquebrantable de la cadena de custodia de menores.
+### Lo que Incluye (SRS Sección 1.2)
+- **Control Biunívoco de Cadena de Custodia:** Registro de eventos de abordaje y desembarque con validación estricta de receptor (Acudiente titular o Adulto Autorizado activo, máximo 3 por estudiante).
+- **Protección Judicial Preventiva:** Detección de mandatos judiciales activos (restricciones de acercamiento) mediante blind indexing, bloqueando de inmediato la entrega física al individuo restringido y activando protocolos de contingencia hacia la sede escolar.
+- **Telemetría e Ingesta IoT en Tiempo Real:** Recepción de coordenadas GPS vehiculares a través de MQTT/HTTPS (latencia objetivo < 2,5 s per RNF-05), con particionamiento mensual y cálculo geográfico PostGIS.
+- **Aislamiento Multi-rol y Privacidad Familiar:** Segmentación estricta (RNF-02) garantizando que cada acudiente consulte únicamente a sus menores a cargo y acceda a la telemetría en vivo del vehículo exclusivamente mientras el menor se encuentre físicamente a bordo.
+- **Sincronización Offline Resiliente:** Mecanismo de persistencia local en SQLite (app monitora) y sincronización idempotente hacia el backend mediante llaves UUIDv7 y detección de duplicidad.
+- **Auditoría Forense Criptográfica WORM:** Bitácora inmutable con encadenamiento SHA-256 secuencial protegido por candado consultivo de transacción (`pg_advisory_xact_lock`).
+- **Esquema Financiero Aislado:** Módulo segregado `billing` para cartera, facturación mensual y registro de pagos, inaccesible para los roles de operación logística.
 
-### 3.2 Objetivos Específicos
-1. **Implementar el Motor de Estados Finitos:** Modelar el ciclo de vida del menor con transiciones deterministas, inmutables y trazables, integrando el disparo de eventos de dominio hacia los subsistemas de notificación y auditoría.
-2. **Construir el Pipeline Telemático IoT & PostGIS:** Desarrollar el consumidor MQTT y los casos de uso espaciales para proyectar coordenadas sobre polilíneas viales, calcular alertas de desvío (>300m) y disparar geocercas predictivas (ETA 5-10 min).
-3. **Asegurar Privacidad Diferencial y Multi-Tenancy:** Desarrollar gateways de WebSocket y guards de autorización por capas (RBAC + MFA) que restrinjan la telemetría vehicular exclusivamente al tutor legitimado mientras el menor esté a bordo.
-4. **Garantizar Resiliencia Offline Idempotente:** Crear servicios de ingesta en bloque para la reconciliación transaccional de colas FIFO provenientes del almacenamiento SQLite móvil tras el cruce de puntos ciegos celulares.
-5. **Establecer Trazabilidad Forense Inmutable:** Implementar un registro de auditoría con encadenamiento criptográfico que impida la alteración histórica de eventos de abordaje, alertas rojas y actas de desembarque.
+### Lo que No Incluye (SRS Sección 1.2)
+- Procesamiento bancario directo de pasarelas de pago (se registra el comprobante o referencia; la liquidación interbancaria es externa).
+- Dispositivos de hardware físico GPS o cámaras a bordo (el backend provee únicamente las interfaces de ingesta de telemetría y contratos telemáticos).
+- Rutas intermunicipales o turismo no vinculado al calendario escolar del Colegio San Benito del Otún.
 
 ---
 
-## 4. Arquitectura y Principios SOLID
+# Objetivos
 
-El backend se estructura siguiendo **Clean Architecture (Puertos y Adaptadores / Arquitectura Hexagonal)**, desacoplando el Dominio y los Casos de Uso de la Infraestructura tecnológica (Postgres, Redis, MQTT, Firebase):
+1. **Garantizar Cero Pérdidas de Custodia:** Proporcionar trazabilidad milimétrica en cada transición de estado del estudiante (`EN_CASA` $\rightarrow$ `A_BORDO_VEHICULO` $\rightarrow$ `EN_COLEGIO` $\rightarrow$ `RETORNO_SEDE_POR_FALLA_ENTREGA`).
+2. **Alta Concurrencia y Resistencia a Condiciones Adversas:** Soporte de operación en zonas de sombra celular con cola de sincronización diferida y control atómico de sobrecupo concurrente (`UPDATE ... WHERE total_a_bordo < capacidad`).
+3. **Privacidad Reforzada (Habeas Data):** Cumplimiento riguroso de la Ley Estatutaria 1581 de 2012 y OWASP ASVS Nivel 2: cifrado de información sensible (AES-256-GCM) y búsquedas mediante índices ciegos deterministas (HMAC-SHA256).
+4. **Respuesta Sub-segundo:** Despacho de notificaciones push críticas y alertas de desvío de ruta en menos de 2,5 segundos hacia las aplicaciones móviles.
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        ADAPTADORES DE ENTRADA                          │
-│     Controllers (REST)    │   Gateways (WebSockets)   │   MQTT Consumer│
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ (DTOs)
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                          PUERTOS DE ENTRADA                            │
-│                 Interfaces de Casos de Uso (Application)                │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                            NÚCLEO DE DOMINIO                           │
-│        Entities Ricas     │    Value Objects    │    Domain Events     │
-│        (Student, Route)   │    (Coordinates)    │    (StateChanged)    │
-│                     Máquina de Estados Finitos                         │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                          PUERTOS DE SALIDA                             │
-│   IStudentRepository │ ITelemetryPublisher │ INotificationChannel      │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ (Inversión de Dependencias)
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                        ADAPTADORES DE SALIDA                           │
-│   TypeORM / PostGIS  │  Redis BullMQ Queue  │  Firebase FCM & Twilio   │
-└────────────────────────────────────────────────────────────────────────┘
+---
+
+# Stack Tecnológico Oficial
+
+| Capa | Tecnología | Justificación y Rol en el Proyecto |
+| :--- | :--- | :--- |
+| **Runtime & Lenguaje** | **Node.js 20 LTS + TypeScript 5.x** | Ejecución asíncrona no bloqueante, tipado estricto de contratos y alta concurrencia. |
+| **Framework Backend** | **NestJS 10.x** | Arquitectura modular orientada a inyección de dependencias (DIP) y separación limpia de capas. |
+| **Base de Datos Principal** | **PostgreSQL 16 + PostGIS 3.4** | Motor relacional transaccional ACID con soporte geoespacial nativo (GiST, geography Point/LineString). |
+| **Base de Datos Móvil Offline** | **SQLite 3 (Móvil)** | Almacenamiento local en dispositivo de monitora con cola de sincronización idempotente. |
+| **Eventos en Tiempo Real** | **Socket.IO 4.x** | Emisión bidireccional de eventos y seguimiento de ruta en vivo hacia las familias y monitores. |
+| **Protocolo Telemetría IoT** | **MQTT v5 / TLS (MQTTS)** | Ingesta ligera y de bajo consumo de paquetes GPS desde terminales vehiculares. |
+| **Autenticación & Sesión** | **JWT + Argon2id + TOTP MFA** | Autenticación stateless con rotación segura de refresh tokens (detección de reutilización) y MFA. |
+| **Notificaciones Push** | **Firebase Cloud Messaging (FCM)** | Entrega masiva y dirigida de notificaciones operativas y alertas institucionales críticas. |
+
+---
+
+# Arquitectura de Software
+
+El sistema backend adopta una **Arquitectura Hexagonal (Puertos y Adaptadores)** combinada con principios **Domain-Driven Design (DDD)** y estricta adherencia a **SOLID**:
+
+```mermaid
+flowchart TD
+    subgraph DrivingAdapters["Adaptadores Primarios (Driving)"]
+        REST["REST API Controllers (NestJS)"]
+        WS["WebSocket Gateway (Socket.IO)"]
+        MQTT_Sub["MQTT Telemetry Subscriber"]
+    end
+
+    subgraph CoreDomain["Núcleo de Dominio & Aplicación (Hexágono)"]
+        direction TB
+        subgraph PortsIn["Puertos de Entrada (Use Cases)"]
+            UC_Auth["IAuthUseCase"]
+            UC_Custody["ICustodyLifecycleUseCase"]
+            UC_Telemetry["ITelemetryIngestUseCase"]
+            UC_Notification["INotificationDispatchUseCase"]
+        end
+
+        subgraph DomainEntities["Entidades & Reglas de Negocio"]
+            E_Viaje["Viaje (Invariante Capacidad)"]
+            E_Custodia["Custodia (Transiciones Válidas)"]
+            E_Alerta["AlertaJudicial (Verificación Blind Index)"]
+            E_Asignacion["AsignacionRuta"]
+        end
+
+        subgraph PortsOut["Puertos de Salida (Secondary Ports)"]
+            P_Repo["ICustodyRepositoryPort"]
+            P_GPS["IGpsRepositoryPort"]
+            P_Audit["IChainAuditPort"]
+            P_Crypto["IKeyVaultCryptoPort"]
+            P_Push["IPushNotificationPort"]
+        end
+    end
+
+    subgraph DrivenAdapters["Adaptadores Secundarios (Driven)"]
+        PostgresRepo["PostgreSQL 16 / PostGIS Adapter"]
+        AuditAdapter["WORM Cryptographic Chain Adapter"]
+        KMSAdapter["Vault / KMS Key Provider"]
+        FCMAdapter["FCM Push Notification Service"]
+    end
+
+    REST --> UC_Custody
+    REST --> UC_Auth
+    WS --> UC_Telemetry
+    MQTT_Sub --> UC_Telemetry
+
+    UC_Custody --> DomainEntities
+    UC_Telemetry --> DomainEntities
+
+    DomainEntities --> PortsOut
+    PortsOut --> PostgresRepo
+    PortsOut --> AuditAdapter
+    PortsOut --> KMSAdapter
+    PortsOut --> FCMAdapter
 ```
 
-### Aplicación Estricta de Principios SOLID
-
-| Principio | Aplicación en el Backend de Camino Seguro |
-| :--- | :--- |
-| **S — Single Responsibility (SRP)** | Cada clase tiene una única razón de cambio. Los controladores solo parsean HTTP/WS; los casos de uso (`RegisterQrBoardingUseCase`, `DetectRouteDeviationUseCase`) ejecutan una sola regla de negocio; los servicios de dominio gobiernan invariantes; y los adaptadores de infraestructura gestionan conexiones externas. |
-| **O — Open/Closed (OCP)** | El sistema está abierto a la extensión pero cerrado a la modificación. El motor de notificaciones (`NotificationDispatcher`) implementa el patrón Strategy sobre la interfaz `INotificationChannel`; agregar un nuevo canal (SMS, WhatsApp, Email) no altera la lógica de los casos de uso. |
-| **L — Liskov Substitution (LSP)** | Cualquier implementación de los puertos de persistencia o telemetría puede sustituir a su abstracción sin alterar la estabilidad del sistema. Por ejemplo, `PostgreSqlStudentRepository` y un `InMemoryStudentRepository` (para tests) satisfacen idénticamente `IStudentRepository`. |
-| **I — Interface Segregation (ISP)** | Se diseñan interfaces pequeñas y de grano fino. En lugar de un repositorio monolítico, se segregan contratos: `IStudentReader`, `IStudentAttendanceWriter`, `IRouteGeometryQuery`, `IAuditableEventLogger`. Los clientes solo conocen los métodos que requieren. |
-| **D — Dependency Inversion (DIP)** | El Dominio y la Aplicación dependen exclusivamente de abstracciones (Puertos/Interfaces). La infraestructura (TypeORM, PostGIS, MQTT, Firebase) depende de dichas abstracciones. En NestJS, la inyección de dependencias desacopla las implementaciones concretas mediante Injection Tokens (`@Inject('STUDENT_REPOSITORY')`). |
+### Aplicación de Principios SOLID en el Backend
+- **Single Responsibility Principle (SRP):** Cada caso de uso (ej. `RegistrarAbordajeUseCase`, `ValidarReceptorEntregaUseCase`) resuelve una única regla de negocio. Los servicios de persistencia, cifrado y despacho de notificaciones están desacoplados.
+- **Open/Closed Principle (OCP):** El motor de alertas (`AlertaMotorService`) permite suscribir nuevos detectores (desvío de ruta, geocerca, velocidad, detención no autorizada) mediante una interfaz unificada sin alterar el procesador central.
+- **Liskov Substitution Principle (LSP):** Todas las implementaciones de repositorios y clientes de notificación implementan interfaces abstractas sustituibles sin alterar invariantes.
+- **Interface Segregation Principle (ISP):** Interfaces pequeñas y específicas para cada consumidor (ej. `IReadableCustodyState`, `IAppendOnlyAuditChain`, `IGpsStreamPublisher`).
+- **Dependency Inversion Principle (DIP):** Las entidades de dominio no conocen TypeORM, PostGIS ni FCM. Dependen exclusivamente de abstracciones de puertos.
 
 ---
 
-## 5. Stack Tecnológico
+# Modelo de Datos y Seguridad ASVS Nivel 2
 
-- **Core & Runtime:** [Node.js 20+ LTS](https://nodejs.org/) & [TypeScript 5+](https://www.typescriptlang.org/)
-- **Framework Web:** [NestJS 10+](https://nestjs.com/) (Arquitectura Modular, Inyección de Dependencias, Pipes, Guards, Interceptors)
-- **Base de Datos Principal:** [PostgreSQL 16](https://www.postgresql.org/) con extensión geoespacial [PostGIS 3.4](https://postgis.net/)
-- **ORM & Migraciones:** [TypeORM](https://typeorm.io/) / [Prisma](https://www.prisma.io/) con tipos de datos espaciales (`geometry(Point, 4326)`, `geometry(LineString, 4326)`)
-- **Procesamiento Asíncrono & Cache:** [Redis 7+](https://redis.io/) con [BullMQ](https://docs.bullmq.io/) para colas transaccionales y broker Pub/Sub
-- **Broker IoT Satelital:** [Eclipse Mosquitto](https://mosquitto.org/) / [EMQX](https://www.emqx.io/) sobre protocolo MQTT v5
-- **Comunicación en Tiempo Real:** [Socket.IO 4+](https://socket.io/) con Redis Adapter para clustering y rooms diferenciales
-- **Seguridad & Identidad:** Passport-JWT, Argon2, [Speakeasy](https://github.com/speakeasyjs/speakeasy) (MFA TOTP), Crypto (AES-256-GCM y SHA-256)
-- **Notificaciones Push & SMS:** [Firebase Admin SDK](https://firebase.google.com/) (FCM) y Twilio API (SMS transaccional de contingencia)
-- **Contenedores & Testing:** Docker, Docker Compose, [Jest](https://jestjs.io/) y Supertest
+El modelo de datos consolidado comprende **42 entidades y relaciones** estructuradas en dos esquemas (`public` y `billing`), documentado exhaustivamente en:
+- [Diagrama Entidad-Relación Consolidado (Mermaid)](docs/er.md)
+- [Matriz de Trazabilidad con Requisitos SRS v2.0](docs/trazabilidad-srs.md)
+- [Registro de Supuestos, Propuestas y Decisiones Pendientes](docs/supuestos-y-propuestas.md)
+
+### Pilares de Seguridad Implementados:
+1. **Identificadores Anti-Enumeración:** Claves primarias generadas mediante **UUIDv7** ordenables cronológicamente, mitigando ataques IDOR y preservando rendimiento en índices B-Tree.
+2. **Cifrado en Reposo de Datos Sensibles:** Formato estándar `key_version:iv:tag:ciphertext` (AES-256-GCM). Identificaciones y teléfonos de acudientes y autorizados cuentan con búsqueda exacta vía **Blind Index HMAC-SHA256**.
+3. **Auditoría Forense Criptográfica (WORM):** Tablas `bitacora_auditoria` e `historial_estado_custodia` encadenan hashes SHA-256 de forma atómica bajo candado consultivo `pg_advisory_xact_lock(9876543210)`. Triggers de base de datos impiden de forma absoluta cualquier `UPDATE`, `DELETE` o `TRUNCATE`.
+4. **Row-Level Security (RLS) y Segregación:** RLS activo en `estudiante`, `registro_gps` y `notificacion`. El acudiente solo puede visualizar datos de sus propios hijos y telemetría mientras el estudiante permanezca a bordo (`A_BORDO_VEHICULO`).
 
 ---
 
-## 6. Estructura del Proyecto (Clean Architecture)
+# Migraciones de Base de Datos (DDL)
+
+Las migraciones se encuentran secuenciadas en `db/migrations/`:
+- `V001__init_extensions_and_roles.sql`: PostGIS, pgcrypto, btree_gist, roles de base de datos (`app_owner`, `app_user`, `app_user_operations`, `app_user_billing`).
+- `V002__identity_and_access.sql`: Colegio, roles RBAC, usuarios, conductores, coordinadores, acudientes, refresh tokens y backup codes.
+- `V003__students_and_custody_vault.sql`: Estudiantes, adultos autorizados (máx. 3), expediente cifrado y alertas judiciales.
+- `V004__geospatial_routes_and_zones.sql`: Rutas, paradas GiST Point, geocercas poligonales de Pereira y asignaciones biunívocas.
+- `V005__trips_and_gps_partitions.sql`: Viajes con exclusión btree_gist para solapamientos, telemetría GPS particionada mensualmente y función de mantenimiento.
+- `V006__attendance_and_custody_lifecycle.sql`: Asistencia QR, transiciones atómicas de abordaje/descenso, bloqueo judicial en entrega y cadena de custodia.
+- `V007__notifications_and_offline_sync.sql`: Tokens FCM, cola de notificaciones, comunicados institucionales y sync idempotente.
+- `V008__forensic_audit_trail.sql`: Bitácora forense encadenada con SHA-256 e inmutabilidad estricta.
+- `V009__billing_isolated_schema.sql`: Esquema `billing` con cartera, facturas y pagos mensuales.
+- `V010__security_rls_and_permissions.sql`: Asignación de propietarios, permisos mínimos y políticas de Row-Level Security.
+
+---
+
+# Estado de Validación DDL
+
+> [!WARNING]
+> **ESTADO ACTUAL: NO VALIDADO EN EJECUCIÓN LOCAL**
+> La totalidad de las sentencias DDL, tipos de datos PostGIS nativos (`geography(Point,4326)`), exclusiones GiST temporales, triggers de encadenamiento SHA-256 y funciones atómicas plpgsql han sido diseñadas, refactorizadas y estructuradas con rigor formal conforme a los estándares de **PostgreSQL 16** y **PostGIS 3.4**. Sin embargo, **no han sido ejecutadas contra una instancia local activa de base de datos** debido a la indisponibilidad de un servicio PostgreSQL / Docker daemon local en el host del desarrollador en este momento. La validación automatizada se encuentra configurada para ejecutarse en el runner de integración continua de GitHub Actions (`.github/workflows/ci.yml`).
+
+---
+
+# Estructura del Repositorio
 
 ```
 backend/
-├── src/
-│   ├── common/                          # Componentes compartidos y utilitarios
-│   │   ├── decorators/                  # @Roles, @CurrentUser, @Public
-│   │   ├── filters/                     # Manejo centralizado de excepciones
-│   │   ├── guards/                      # JwtAuthGuard, RolesGuard, MfaGuard
-│   │   └── interceptors/                # AuditLoggingInterceptor, TransformInterceptor
-│   ├── config/                          # Configuración y validación de variables de entorno
-│   ├── core/                            # Núcleo de Dominio y Casos de Uso (Hexagonal)
-│   │   ├── domain/                      # Entidades ricas, Value Objects y Domain Events
-│   │   │   ├── student/                 # Entidad Student, Máquina de Estados, Eventos
-│   │   │   ├── route/                   # Entidad Route, Paraderos, Polilíneas PostGIS
-│   │   │   ├── vehicle/                 # Entidad Vehicle, Capacidad Nominal, Módem GPS
-│   │   │   └── custody/                 # Expedientes, Alertas Judiciales Rojas
-│   │   ├── use-cases/                   # Casos de uso de aplicación (SRP)
-│   │   │   ├── attendance/              # RegisterQrBoarding, VerifyDisembark
-│   │   │   ├── telemetry/               # IngestTelemetry, DetectRouteDeviation
-│   │   │   ├── geofence/                # CalculateGeofenceEta
-│   │   │   ├── offline-sync/            # ProcessOfflineBatchSync
-│   │   │   └── notifications/           # DispatchStateNotification
-│   │   └── ports/                       # Interfaces abstractas (DIP / ISP)
-│   │       ├── in/                      # Puertos de entrada (Casos de uso)
-│   │       └── out/                     # Puertos de salida (Repositorios, Notificadores)
-│   ├── infrastructure/                  # Adaptadores externos y tecnologías
-│   │   ├── adapters/
-│   │   │   ├── persistence/             # Implementaciones TypeORM + PostGIS
-│   │   │   ├── telemetry/               # Consumidor MQTT y listeners de módems
-│   │   │   ├── notifications/           # Adaptadores Firebase FCM y SMS Twilio
-│   │   │   └── websockets/              # Socket.IO Gateway con privacidad diferencial
-│   │   └── controllers/                 # Controladores REST API
-│   ├── app.module.ts
-│   └── main.ts
-├── docker-compose.yml                   # Postgres (PostGIS), Redis, Mosquitto
-├── Dockerfile
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.yml
+│   │   ├── feature_request.yml
+│   │   ├── security_issue.yml
+│   │   └── config.yml
+│   └── workflows/
+│       └── ci.yml
+├── db/
+│   ├── migrations/
+│   │   ├── V001__init_extensions_and_roles.sql
+│   │   ├── V002__identity_and_access.sql
+│   │   ├── V003__students_and_custody_vault.sql
+│   │   ├── V004__geospatial_routes_and_zones.sql
+│   │   ├── V005__trips_and_gps_partitions.sql
+│   │   ├── V006__attendance_and_custody_lifecycle.sql
+│   │   ├── V007__notifications_and_offline_sync.sql
+│   │   ├── V008__forensic_audit_trail.sql
+│   │   ├── V009__billing_isolated_schema.sql
+│   │   └── V010__security_rls_and_permissions.sql
+│   └── tests/
+│       └── test_suite_camino_seguro.sql
+├── docs/
+│   ├── er.md
+│   ├── supuestos-y-propuestas.md
+│   └── trazabilidad-srs.md
 ├── .env.example
-└── README.md
+├── .gitignore
+├── CODEOWNERS
+├── CONTRIBUTING.md
+├── LICENSE
+├── PULL_REQUEST_TEMPLATE.md
+├── README.md
+└── SECURITY.md
 ```
 
 ---
 
-## 7. Variables de Entorno (`.env.example`)
+# Configuración y Variables de Entorno
 
-```env
-# Servidor
-PORT=3000
-NODE_ENV=development
-API_PREFIX=/api/v1
-
-# Seguridad
-JWT_SECRET=super_secret_jwt_key_development_32chars
-JWT_EXPIRATION=15m
-JWT_REFRESH_SECRET=super_secret_refresh_key_development_32chars
-JWT_REFRESH_EXPIRATION=7d
-MFA_SERVICE_NAME=CaminoSeguroBackend
-AES_256_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-
-# Base de Datos PostgreSQL + PostGIS
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=postgres
-DB_PASSWORD=postgres
-DB_DATABASE=camino_seguro_db
-DB_SYNCHRONIZE=false
-
-# Redis & Colas (BullMQ)
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-
-# Broker MQTT
-MQTT_BROKER_URL=mqtt://localhost:1883
-MQTT_CLIENT_ID=backend_telemetry_worker
-MQTT_TOPIC_TELEMETRY=vehicles/+/telemetry
-
-# Firebase Admin SDK (FCM)
-FIREBASE_PROJECT_ID=camino-seguro-firebase
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk@camino-seguro.iam.gserviceaccount.com
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
-```
-
----
-
-## 8. Instalación y Ejecución Local
+Copiar la plantilla de configuración e ingresar los secretos correspondientes a través del gestor de credenciales:
 
 ```bash
-# 1. Clonar el repositorio
-git clone https://github.com/Code-Dev-2026/backend.git
-cd backend
-
-# 2. Instalar dependencias
-npm install
-
-# 3. Levantar infraestructura Docker (Postgres/PostGIS, Redis, Mosquitto)
-docker-compose up -d
-
-# 4. Configurar variables de entorno
 cp .env.example .env
-
-# 5. Ejecutar migraciones de base de datos
-npm run migration:run
-
-# 6. Iniciar en modo desarrollo
-npm run start:dev
 ```
 
-Documentación interactiva OpenAPI: `http://localhost:3000/api/docs`
+Consultar la documentación detallada de cada variable en [.env.example](.env.example).
 
 ---
 
-## 9. Integrantes del Proyecto
+# Integrantes
 
 - **Jhonatan Mauricio Muchavisoy Jajoy**
 - **Aura Camila Arteaga Castillo**

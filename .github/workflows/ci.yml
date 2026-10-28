@@ -1,0 +1,67 @@
+name: Backend CI & Security Verification
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  validate-database:
+    name: Validate PostgreSQL 16 + PostGIS DDL Migrations
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: camino_seguro_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL Client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Execute Sequential Migrations (V001 to V010)
+        env:
+          PGPASSWORD: postgrespassword
+        run: |
+          echo "Ejecutando migraciones DDL..."
+          for file in $(ls db/migrations/V*.sql | sort -V); do
+            echo "Aplicando migración: $file"
+            psql -h localhost -p 5432 -U postgres -d camino_seguro_db -v ON_ERROR_STOP=1 -f "$file"
+          done
+
+      - name: Execute Automated DDL Test Suite
+        env:
+          PGPASSWORD: postgrespassword
+        run: |
+          echo "Ejecutando suite de pruebas de integridad y reglas de negocio..."
+          psql -h localhost -p 5432 -U postgres -d camino_seguro_db -v ON_ERROR_STOP=1 -f db/tests/test_suite_camino_seguro.sql
+
+  static-analysis:
+    name: Static Code & Secret Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify No Committed Secrets
+        run: |
+          echo "Verificando ausencia de llaves privadas o credenciales expuestas..."
+          if grep -rn "BEGIN PRIVATE KEY" --exclude="*.example" --exclude="SECURITY.md" .; then
+            echo "ERROR: Se detectó una llave privada en el repositorio."
+            exit 1
+          fi
+          echo "Chequeo de secretos superado con éxito."

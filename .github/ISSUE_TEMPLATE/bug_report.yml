@@ -1,0 +1,26 @@
+name: Reporte de Defecto / Bug Backend
+description: Reporta un error o comportamiento inconsistente en la API o persistencia.
+title: "fix(<módulo>): <descripción concisa del defecto>"
+labels: ["type:bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Descripción del Error
+      description: Qué falló, código de error HTTP/SQL o comportamiento inesperado.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Pasos para Reproducir
+      description: Payload de solicitud, endpoint y secuencia de eventos.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamiento Esperado vs Obtenido
+      description: Qué estipula el SRS v2.0 frente a lo observado.
+    validations:
+      required: true

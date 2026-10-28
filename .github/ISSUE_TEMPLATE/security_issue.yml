@@ -1,0 +1,19 @@
+name: Vulnerabilidad de Seguridad ASVS
+description: Reporte de seguridad o violación de controles criptográficos / autorización.
+title: "sec(<módulo>): <descripción de la vulnerabilidad>"
+labels: ["type:security", "priority:critical"]
+body:
+  - type: textarea
+    id: vulnerability
+    attributes:
+      label: Descripción de la Vulnerabilidad
+      description: Control ASVS L2 afectado o vector de ataque identificado.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impacto Potencial
+      description: Datos de menores, tokens o escalamiento de privilegios comprometido.
+    validations:
+      required: true

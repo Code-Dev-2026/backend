@@ -133,18 +133,10 @@ USING (
               AND v.estado = 'EN_CURSO'
               AND EXISTS (
                   -- Condición RF-10: solo mientras el menor esté físicamente a bordo
-                  SELECT 1 FROM public.registro_de_asistencia ra
-                  WHERE ra.id_viaje = v.id_viaje
-                    AND ra.id_estudiante = ar.id_estudiante
-                    AND ra.tipo_evento = 'ABORDAJE'
-                    AND ra.estado = 'CONFIRMADO'
-              )
-              AND NOT EXISTS (
-                  SELECT 1 FROM public.registro_de_asistencia rd
-                  WHERE rd.id_viaje = v.id_viaje
-                    AND rd.id_estudiante = ar.id_estudiante
-                    AND rd.tipo_evento = 'DESCENSO'
-                    AND rd.estado = 'CONFIRMADO'
+                  SELECT 1 FROM public.viaje_estudiante ve
+                  WHERE ve.id_viaje = v.id_viaje
+                    AND ve.id_estudiante = ar.id_estudiante
+                    AND ve.estado_custodia = 'A_BORDO_VEHICULO'
               )
         )
     )

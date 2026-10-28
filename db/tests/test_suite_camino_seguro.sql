@@ -124,7 +124,7 @@ BEGIN
     v_res := fn_registrar_abordaje_atomico(
         v_viaje_id,
         v_estudiante_1,
-        'ESCANEO_QR',
+        'QR_INSTITUCIONAL',
         ST_SetSRID(ST_MakePoint(-75.690, 4.810), 4326)::geography,
         v_user_mon_id
     );
@@ -136,7 +136,7 @@ BEGIN
     v_res := fn_registrar_abordaje_atomico(
         v_viaje_id,
         v_estudiante_2,
-        'ESCANEO_QR',
+        'QR_INSTITUCIONAL',
         ST_SetSRID(ST_MakePoint(-75.690, 4.810), 4326)::geography,
         v_user_mon_id
     );

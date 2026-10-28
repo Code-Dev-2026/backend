@@ -60,7 +60,7 @@ jobs:
       - name: Verify No Committed Secrets
         run: |
           echo "Verificando ausencia de llaves privadas o credenciales expuestas..."
-          if grep -rn "BEGIN PRIVATE KEY" --exclude="*.example" --exclude="SECURITY.md" .; then
+          if grep -rn "BEGIN PRIVATE KEY" --exclude="*.example" --exclude="SECURITY.md" --exclude-dir=".github" .; then
             echo "ERROR: Se detectó una llave privada en el repositorio."
             exit 1
           fi

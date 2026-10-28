@@ -43,15 +43,23 @@ DECLARE
 BEGIN
     v_time_ms := (extract(epoch from clock_timestamp()) * 1000)::bigint;
     v_bytes := gen_random_bytes(16);
-    v_bytes := set_byte(v_bytes, 0, (v_time_ms >> 40)::integer);
-    v_bytes := set_byte(v_bytes, 1, (v_time_ms >> 32)::integer);
-    v_bytes := set_byte(v_bytes, 2, (v_time_ms >> 24)::integer);
-    v_bytes := set_byte(v_bytes, 3, (v_time_ms >> 16)::integer);
-    v_bytes := set_byte(v_bytes, 4, (v_time_ms >> 8)::integer);
-    v_bytes := set_byte(v_bytes, 5, (v_time_ms)::integer);
+    v_bytes := set_byte(v_bytes, 0, ((v_time_ms >> 40) & 255)::integer);
+    v_bytes := set_byte(v_bytes, 1, ((v_time_ms >> 32) & 255)::integer);
+    v_bytes := set_byte(v_bytes, 2, ((v_time_ms >> 24) & 255)::integer);
+    v_bytes := set_byte(v_bytes, 3, ((v_time_ms >> 16) & 255)::integer);
+    v_bytes := set_byte(v_bytes, 4, ((v_time_ms >> 8) & 255)::integer);
+    v_bytes := set_byte(v_bytes, 5, (v_time_ms & 255)::integer);
     v_bytes := set_byte(v_bytes, 6, (get_byte(v_bytes, 6) & 15) | 112); -- Version 7 (0111)
     v_bytes := set_byte(v_bytes, 8, (get_byte(v_bytes, 8) & 63) | 128); -- Variant 1 (10)
     RETURN encode(v_bytes, 'hex')::uuid;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
+
+-- Alias para compatibilidad con llamadas uuid_generate_v7()
+CREATE OR REPLACE FUNCTION uuid_generate_v7()
+RETURNS uuid AS $$
+BEGIN
+    RETURN fn_uuid_generate_v7();
 END;
 $$ LANGUAGE plpgsql VOLATILE;
 

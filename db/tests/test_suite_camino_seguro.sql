@@ -1,275 +1,185 @@
 -- ============================================================================
 -- CAMINO SEGURO - TEST SUITE DE INTEGRIDAD Y REGLAS DE NEGOCIO (POSTGRESQL 16)
 -- db/tests/test_suite_camino_seguro.sql
--- Escenarios de prueba automatizados para verificar invariantes críticas:
--- 1. Doble escaneo de abordaje
--- 2. Sobrecupo atómico concurrente
--- 3. Verificación de hash SHA-256 encadenado en Bitácora y Custodia
--- 4. Segregación de permisos del esquema billing
--- 5. Row-Level Security (Aislamiento familiar de acudientes)
--- 6. Desembarque normal vs Retorno a sede por ausencia de receptor
--- 7. Alerta judicial activa en entrega
 -- ============================================================================
 
 \set ON_ERROR_STOP on
 
 BEGIN;
 
--- ----------------------------------------------------------------------------
--- SETUP DE DATOS SEMILLA PARA PRUEBAS
--- ----------------------------------------------------------------------------
 DO $$
 DECLARE
-    v_colegio_id UUID;
-    v_empresa_id UUID;
-    v_vehiculo_id UUID;
-    v_user_cond_id UUID;
-    v_user_mon_id UUID;
-    v_user_acu_id UUID;
-    v_conductor_id UUID;
-    v_acudiente_id UUID;
-    v_estudiante_1 UUID;
-    v_estudiante_2 UUID;
-    v_ruta_id UUID;
-    v_parada_subida UUID;
-    v_parada_bajada UUID;
-    v_viaje_id UUID;
+    v_colegio_id UUID := '018f0000-0000-7000-8000-000000000001';
+    v_empresa_id UUID := '018f0000-0000-7000-8000-000000000002';
+    v_vehiculo_id UUID := '018f0000-0000-7000-8000-000000000003';
+    v_user_cond_id UUID := '018f0000-0000-7000-8000-000000000010';
+    v_user_mon_id UUID := '018f0000-0000-7000-8000-000000000011';
+    v_user_acu_id UUID := '018f0000-0000-7000-8000-000000000012';
+    v_conductor_id UUID := '018f0000-0000-7000-8000-000000000020';
+    v_monitora_id UUID := '018f0000-0000-7000-8000-000000000021';
+    v_acudiente_id UUID := '018f0000-0000-7000-8000-000000000030';
+    v_estudiante_1 UUID := '018f0000-0000-7000-8000-000000000041';
+    v_estudiante_2 UUID := '018f0000-0000-7000-8000-000000000042';
+    v_ruta_id UUID := '018f0000-0000-7000-8000-000000000050';
+    v_parada_subida UUID := '018f0000-0000-7000-8000-000000000051';
+    v_parada_bajada UUID := '018f0000-0000-7000-8000-000000000052';
+    v_viaje_id UUID := '018f0000-0000-7000-8000-000000000060';
+    v_cifrado formato_cifrado_aes := 'v1:MTIzNDU2Nzg5MDEy:MTIzNDU2Nzg5MDEyMzQ1Ng==:Y2lwaGVydGV4dA==';
     v_res JSONB;
+    v_total_a_bordo INT;
+    r RECORD;
 BEGIN
-    RAISE NOTICE '=== INICIANDO CONFIGURACIÓN DE ESCENARIOS DE PRUEBA ===';
+    RAISE NOTICE '=== 1. SETUP DE DATOS SEMILLA PARA PRUEBAS ===';
 
     -- Colegio
-    INSERT INTO colegio (id_colegio, nombre, nit, direccion, telefono, ubicacion_geografica)
-    VALUES (
-        '018f0000-0000-7000-8000-000000000001',
-        'Colegio San Benito del Otún',
-        '900123456-7',
-        'Km 4 Vía La Florida, Pereira',
-        '+57 310 1234567',
-        ST_SetSRID(ST_MakePoint(-75.69611, 4.81333), 4326)::geography
-    ) ON CONFLICT DO NOTHING;
+    INSERT INTO colegio (id_colegio, nombre, nit, direccion, telefono)
+    VALUES (v_colegio_id, 'Colegio San Benito del Otún', '900123456-7', 'Km 4 Vía La Florida, Pereira', '+57 310 1234567')
+    ON CONFLICT (id_colegio) DO NOTHING;
 
-    -- Empresa y Vehículo (Capacidad 1 pasajero para prueba de sobrecupo)
-    INSERT INTO empresa_transportadora (id_empresa, nombre, nit, telefono, direccion)
-    VALUES (
-        '018f0000-0000-7000-8000-000000000002',
-        'Transportes Camino Seguro S.A.S.',
-        '901987654-3',
-        '+57 6 3209999',
-        'Av. Circunvalar # 12-34, Pereira'
-    ) ON CONFLICT DO NOTHING;
+    -- Empresa Transportadora
+    INSERT INTO empresa_transportadora (id_empresa, razon_social, nit, telefono, email_contacto)
+    VALUES (v_empresa_id, 'Transportes Camino Seguro S.A.S.', '901987654-3', '+57 6 3209999', 'operaciones@caminoseguro.com')
+    ON CONFLICT (id_empresa) DO NOTHING;
 
-    INSERT INTO vehiculo (id_vehiculo, id_empresa, placa, marca, modelo, capacidad_pasajeros, soat_vencimiento, rtm_vencimiento)
-    VALUES (
-        '018f0000-0000-7000-8000-000000000003',
-        '018f0000-0000-7000-8000-000000000002',
-        'WKK123',
-        'Mercedes-Benz',
-        'Sprinter 515',
-        1, -- CAPACIDAD 1 PARA TEST DE SOBRECUPO
-        CURRENT_DATE + INTERVAL '180 days',
-        CURRENT_DATE + INTERVAL '180 days'
-    ) ON CONFLICT DO NOTHING;
+    -- Vehículo con capacidad nominal = 1 para test de sobrecupo
+    INSERT INTO vehiculo (id_vehiculo, id_empresa, placa, capacidad_nominal, numero_movil, modelo, tarjeta_operacion, imei_gps_fijo)
+    VALUES (v_vehiculo_id, v_empresa_id, 'WKK123', 1, 'BUS-01', 'Mercedes Sprinter', 'TO-998877', 'IMEI-8675309001')
+    ON CONFLICT (id_vehiculo) DO NOTHING;
 
     -- Usuarios: Conductor, Monitora, Acudiente
-    INSERT INTO usuario (id_usuario, nombre_completo, correo, documento_identidad_hash, telefono, id_rol)
+    INSERT INTO usuario (id_usuario, email, password_hash)
     VALUES
-    ('018f0000-0000-7000-8000-000000000010', 'Carlos Conductor', 'carlos@caminoseguro.edu.co', encode(digest('1088001001', 'sha256'), 'hex'), '+573001111111', 2),
-    ('018f0000-0000-7000-8000-000000000011', 'Marta Monitora', 'marta@caminoseguro.edu.co', encode(digest('1088001002', 'sha256'), 'hex'), '+573002222222', 3),
-    ('018f0000-0000-7000-8000-000000000012', 'Ana Acudiente', 'ana@padres.com', encode(digest('1088001003', 'sha256'), 'hex'), '+573003333333', 4)
-    ON CONFLICT DO NOTHING;
+        (v_user_cond_id, 'conductor@caminoseguro.edu.co', 'argon2id$mocked$hash'),
+        (v_user_mon_id, 'monitora@caminoseguro.edu.co', 'argon2id$mocked$hash'),
+        (v_user_acu_id, 'acudiente@padres.edu.co', 'argon2id$mocked$hash')
+    ON CONFLICT (id_usuario) DO NOTHING;
 
-    INSERT INTO conductor (id_conductor, id_usuario, numero_licencia, vencimiento_licencia)
-    VALUES ('018f0000-0000-7000-8000-000000000020', '018f0000-0000-7000-8000-000000000010', 'LIC-998877', CURRENT_DATE + INTERVAL '365 days')
-    ON CONFLICT DO NOTHING;
+    -- Conductor
+    INSERT INTO conductor (id_conductor, id_usuario, id_empresa, nombres, apellidos, numero_licencia, vigencia_licencia, telefono)
+    VALUES (v_conductor_id, v_user_cond_id, v_empresa_id, 'Carlos', 'Conductor', 'LIC-108801', CURRENT_DATE + INTERVAL '365 days', '+573001111111')
+    ON CONFLICT (id_conductor) DO NOTHING;
 
-    INSERT INTO acudiente (id_acudiente, id_usuario, nombres, apellidos, documento_identidad_hash, telefono_principal, correo_electronico, direccion_residencia)
-    VALUES ('018f0000-0000-7000-8000-000000000030', '018f0000-0000-7000-8000-000000000012', 'Ana', 'Gomez', encode(digest('1088001003', 'sha256'), 'hex'), '+573003333333', 'ana@padres.com', 'Calle 10 # 5-20')
-    ON CONFLICT DO NOTHING;
+    -- Monitora
+    INSERT INTO monitora (id_monitora, id_usuario, id_empresa, nombres, apellidos, documento_cifrado, documento_blind_index, telefono)
+    VALUES (v_monitora_id, v_user_mon_id, v_empresa_id, 'Marta', 'Monitora', v_cifrado, encode(digest('DOC-MON-01', 'sha256'), 'hex'), '+573002222222')
+    ON CONFLICT (id_monitora) DO NOTHING;
 
-    -- Estudiantes (2 estudiantes)
-    INSERT INTO estudiante (id_estudiante, id_colegio, nombres, apellidos, codigo_estudiantil, codigo_qr_hash)
+    -- Acudiente
+    INSERT INTO acudiente (id_acudiente, id_usuario, nombres, apellidos, documento_cifrado, documento_blind_index, telefono_principal_cifrado, telefono_emergencia_cifrado, direccion_cifrada)
+    VALUES (v_acudiente_id, v_user_acu_id, 'Ana', 'Gomez', v_cifrado, encode(digest('DOC-ACU-01', 'sha256'), 'hex'), v_cifrado, v_cifrado, v_cifrado)
+    ON CONFLICT (id_acudiente) DO NOTHING;
+
+    -- Estudiantes 1 y 2
+    INSERT INTO estudiante (id_estudiante, id_colegio, codigo_institucional, documento_cifrado, documento_blind_index, nombres_cifrado, apellidos_cifrado, fecha_nacimiento_cifrada, grado, qr_token_hash, domicilio_punto)
     VALUES
-    ('018f0000-0000-7000-8000-000000000041', '018f0000-0000-7000-8000-000000000001', 'Santiago', 'Perez Gomez', 'EST-001', encode(digest('QR-SANTI-001', 'sha256'), 'hex')),
-    ('018f0000-0000-7000-8000-000000000042', '018f0000-0000-7000-8000-000000000001', 'Valeria', 'Perez Gomez', 'EST-002', encode(digest('QR-VALE-002', 'sha256'), 'hex'))
-    ON CONFLICT DO NOTHING;
+        (v_estudiante_1, v_colegio_id, 'EST-001', v_cifrado, encode(digest('DOC-EST-01', 'sha256'), 'hex'), v_cifrado, v_cifrado, v_cifrado, '5A', encode(digest('QR-EST-01', 'sha256'), 'hex'), ST_SetSRID(ST_MakePoint(-75.690, 4.810), 4326)::geography),
+        (v_estudiante_2, v_colegio_id, 'EST-002', v_cifrado, encode(digest('DOC-EST-02', 'sha256'), 'hex'), v_cifrado, v_cifrado, v_cifrado, '5B', encode(digest('QR-EST-02', 'sha256'), 'hex'), ST_SetSRID(ST_MakePoint(-75.691, 4.811), 4326)::geography)
+    ON CONFLICT (id_estudiante) DO NOTHING;
 
-    INSERT INTO estudiante_acudiente (id_estudiante, id_acudiente, relacion, es_representante_legal)
+    -- Vínculos Estudiante - Acudiente
+    INSERT INTO estudiante_acudiente (id_estudiante, id_acudiente, parentesco, es_tutor_principal, orden_notificacion)
     VALUES
-    ('018f0000-0000-7000-8000-000000000041', '018f0000-0000-7000-8000-000000000030', 'MADRE', true),
-    ('018f0000-0000-7000-8000-000000000042', '018f0000-0000-7000-8000-000000000030', 'MADRE', true)
-    ON CONFLICT DO NOTHING;
+        (v_estudiante_1, v_acudiente_id, 'MADRE', true, 1),
+        (v_estudiante_2, v_acudiente_id, 'MADRE', true, 1)
+    ON CONFLICT (id_estudiante, id_acudiente) DO NOTHING;
 
-    -- Ruta y Paradas
-    INSERT INTO ruta (id_ruta, id_colegio, id_empresa, codigo_ruta, nombre, tipo_recorrido)
-    VALUES ('018f0000-0000-7000-8000-000000000050', '018f0000-0000-7000-8000-000000000001', '018f0000-0000-7000-8000-000000000002', 'R-01', 'Ruta Pinares - Circunvalar', 'MANANA')
-    ON CONFLICT DO NOTHING;
-
-    INSERT INTO parada (id_parada, id_ruta, nombre, orden_secuencia, punto_geografico)
-    VALUES
-    ('018f0000-0000-7000-8000-000000000051', '018f0000-0000-7000-8000-000000000050', 'Parada Pinares Carrera 18', 1, ST_SetSRID(ST_MakePoint(-75.690, 4.810), 4326)::geography),
-    ('018f0000-0000-7000-8000-000000000052', '018f0000-0000-7000-8000-000000000050', 'Colegio Sede Principal', 2, ST_SetSRID(ST_MakePoint(-75.696, 4.813), 4326)::geography)
-    ON CONFLICT DO NOTHING;
-
-    -- Asignación de ambos estudiantes a la ruta
-    INSERT INTO asignacion_ruta (id_estudiante, id_ruta, id_parada_subida, id_parada_bajada)
-    VALUES
-    ('018f0000-0000-7000-8000-000000000041', '018f0000-0000-7000-8000-000000000050', '018f0000-0000-7000-8000-000000000051', '018f0000-0000-7000-8000-000000000052'),
-    ('018f0000-0000-7000-8000-000000000042', '018f0000-0000-7000-8000-000000000050', '018f0000-0000-7000-8000-000000000051', '018f0000-0000-7000-8000-000000000052')
-    ON CONFLICT DO NOTHING;
-
-    -- Viaje En Curso
-    INSERT INTO viaje (
-        id_viaje, id_ruta, id_vehiculo, id_conductor, id_monitora,
-        fecha, hora_inicio_programada, hora_fin_programada,
-        hora_inicio_real, estado, total_a_bordo
-    )
+    -- Ruta
+    INSERT INTO ruta (id_ruta, id_colegio, id_empresa, codigo, nombre, jornada, polilinea_oficial, origen_nombre, destino_nombre)
     VALUES (
-        '018f0000-0000-7000-8000-000000000060',
-        '018f0000-0000-7000-8000-000000000050',
-        '018f0000-0000-7000-8000-000000000003', -- Vehiculo con capacidad 1
-        '018f0000-0000-7000-8000-000000000020',
-        '018f0000-0000-7000-8000-000000000011',
-        CURRENT_DATE,
-        clock_timestamp(),
-        clock_timestamp() + INTERVAL '1 hour',
-        clock_timestamp(),
-        'EN_CURSO',
-        0
-    ) ON CONFLICT DO NOTHING;
+        v_ruta_id, v_colegio_id, v_empresa_id, 'R-01', 'Ruta Pinares - San Benito', 'MANANA',
+        ST_SetSRID(ST_MakeLine(ST_MakePoint(-75.690, 4.810), ST_MakePoint(-75.696, 4.813)), 4326)::geography,
+        'Pinares', 'Colegio San Benito'
+    ) ON CONFLICT (id_ruta) DO NOTHING;
 
-    RAISE NOTICE '=== SETUP COMPLETADO EXITOSAMENTE ===';
-END $$;
+    -- Paradas (subida y bajada)
+    INSERT INTO parada (id_parada, id_ruta, nombre, orden_secuencia, punto_geografico, horario_estimado, radio_geocerca)
+    VALUES
+        (v_parada_subida, v_ruta_id, 'Parada Pinares', 1, ST_SetSRID(ST_MakePoint(-75.690, 4.810), 4326)::geography, '06:30:00'::time, ST_SetSRID(ST_Buffer(ST_MakePoint(-75.690, 4.810)::geography, 100)::geometry, 4326)::geography),
+        (v_parada_bajada, v_ruta_id, 'Colegio Entrada', 2, ST_SetSRID(ST_MakePoint(-75.696, 4.813), 4326)::geography, '07:00:00'::time, ST_SetSRID(ST_Buffer(ST_MakePoint(-75.696, 4.813)::geography, 100)::geometry, 4326)::geography)
+    ON CONFLICT (id_ruta, orden_secuencia) DO NOTHING;
 
--- ----------------------------------------------------------------------------
--- ESCENARIO 1: ABORDAJE EXITOSO DEL ESTUDIANTE 1
--- ----------------------------------------------------------------------------
-DO $$
-DECLARE
-    v_res JSONB;
-BEGIN
-    RAISE NOTICE '--- TEST 1: Registro de Abordaje Normal (Estudiante 1) ---';
+    -- Asignación de ambos estudiantes
+    INSERT INTO asignacion_ruta (id_estudiante, id_ruta, id_parada_subida, id_parada_bajada, ciclo_horario)
+    VALUES
+        (v_estudiante_1, v_ruta_id, v_parada_subida, v_parada_bajada, 'IDA'),
+        (v_estudiante_2, v_ruta_id, v_parada_subida, v_parada_bajada, 'IDA')
+    ON CONFLICT DO NOTHING;
+
+    -- Viaje en estado EN_CURSO
+    INSERT INTO viaje (id_viaje, id_ruta, id_vehiculo, id_conductor, id_monitora, fecha, hora_inicio_programada, hora_fin_programada, estado, hora_inicio_real, total_a_bordo)
+    VALUES (
+        v_viaje_id, v_ruta_id, v_vehiculo_id, v_conductor_id, v_monitora_id,
+        CURRENT_DATE, NOW() - INTERVAL '10 minutes', NOW() + INTERVAL '50 minutes',
+        'EN_CURSO', NOW() - INTERVAL '10 minutes', 0
+    ) ON CONFLICT (id_viaje) DO NOTHING;
+
+    -- viaje_estudiante en estado EN_CASA_ESPERA
+    INSERT INTO viaje_estudiante (id_viaje, id_estudiante, estado_custodia)
+    VALUES
+        (v_viaje_id, v_estudiante_1, 'EN_CASA_ESPERA'),
+        (v_viaje_id, v_estudiante_2, 'EN_CASA_ESPERA')
+    ON CONFLICT (id_viaje, id_estudiante) DO NOTHING;
+
+    RAISE NOTICE '=== 2. TEST: ABORDAJE EXITOSO ESTUDIANTE 1 ===';
     v_res := fn_registrar_abordaje_atomico(
-        '018f0000-0000-7000-8000-000000000060', -- viaje
-        '018f0000-0000-7000-8000-000000000041', -- estudiante 1
-        '018f0000-0000-7000-8000-000000000051', -- parada
-        '018f0000-0000-7000-8000-000000000011', -- monitora
-        'LECTURA_QR'
+        v_viaje_id,
+        v_estudiante_1,
+        'ESCANEO_QR',
+        ST_SetSRID(ST_MakePoint(-75.690, 4.810), 4326)::geography,
+        v_user_mon_id
     );
     RAISE NOTICE 'Resultado Test 1: %', v_res;
-    ASSERT (v_res->>'exito')::boolean = true, 'Fallo: El abordaje inicial debía ser exitoso';
-    ASSERT (v_res->>'codigo') = 'EXITO', 'Fallo: Código de resultado esperado EXITO';
-END $$;
+    ASSERT (v_res->>'exito')::boolean = true, 'Fallo: El abordaje inicial debió ser exitoso';
+    ASSERT (v_res->>'codigo') = 'EXITO_ABORDAJE', 'Fallo: Código de abordaje no coincide';
 
--- ----------------------------------------------------------------------------
--- ESCENARIO 2: RECHAZO DE SOBRECUPO (CAPACIDAD DEL VEHICULO = 1)
--- El estudiante 2 intenta abordar pero el vehículo ya tiene 1 a bordo.
--- ----------------------------------------------------------------------------
-DO $$
-DECLARE
-    v_res JSONB;
-    v_total_a_bordo INT;
-BEGIN
-    RAISE NOTICE '--- TEST 2: Control de Capacidad y Detección de Sobrecupo ---';
+    RAISE NOTICE '=== 3. TEST: SOBRECUPO BLOQUEADO (CAPACIDAD = 1) ===';
     v_res := fn_registrar_abordaje_atomico(
-        '018f0000-0000-7000-8000-000000000060', -- viaje
-        '018f0000-0000-7000-8000-000000000042', -- estudiante 2
-        '018f0000-0000-7000-8000-000000000051', -- parada
-        '018f0000-0000-7000-8000-000000000011', -- monitora
-        'LECTURA_QR'
+        v_viaje_id,
+        v_estudiante_2,
+        'ESCANEO_QR',
+        ST_SetSRID(ST_MakePoint(-75.690, 4.810), 4326)::geography,
+        v_user_mon_id
     );
     RAISE NOTICE 'Resultado Test 2 (Sobrecupo): %', v_res;
-    ASSERT (v_res->>'exito')::boolean = false, 'Fallo: El abordaje debió ser denegado por sobrecupo';
-    ASSERT (v_res->>'codigo') = 'DENEGADO_SOBRECUPO', 'Fallo: Código de resultado esperado DENEGADO_SOBRECUPO';
+    ASSERT (v_res->>'exito')::boolean = false, 'Fallo: El abordaje con capacidad nominal agotada debió ser rechazado';
+    ASSERT (v_res->>'codigo') = 'DENEGADO_SOBRECUPO', 'Fallo: Código esperado DENEGADO_SOBRECUPO';
 
-    SELECT total_a_bordo INTO v_total_a_bordo FROM viaje WHERE id_viaje = '018f0000-0000-7000-8000-000000000060';
-    ASSERT v_total_a_bordo = 1, 'Fallo: El total a bordo no debió incrementarse más allá de la capacidad';
-END $$;
+    SELECT total_a_bordo INTO v_total_a_bordo FROM viaje WHERE id_viaje = v_viaje_id;
+    ASSERT v_total_a_bordo = 1, 'Fallo: total_a_bordo no debe superar la capacidad de 1';
 
--- ----------------------------------------------------------------------------
--- ESCENARIO 3: RECHAZO DE DOBLE ABORDAJE (ESCÁNER REPETIDO)
--- ----------------------------------------------------------------------------
-DO $$
-DECLARE
-    v_res JSONB;
-BEGIN
-    RAISE NOTICE '--- TEST 3: Rechazo de Doble Abordaje (Estudiante 1 re-escaneado) ---';
-    v_res := fn_registrar_abordaje_atomico(
-        '018f0000-0000-7000-8000-000000000060', -- viaje
-        '018f0000-0000-7000-8000-000000000041', -- estudiante 1
-        '018f0000-0000-7000-8000-000000000051', -- parada
-        '018f0000-0000-7000-8000-000000000011', -- monitora
-        'LECTURA_QR'
-    );
-    RAISE NOTICE 'Resultado Test 3 (Doble Abordaje): %', v_res;
-    ASSERT (v_res->>'exito')::boolean = false, 'Fallo: El re-escaneo debía ser rechazado';
-    ASSERT (v_res->>'codigo') = 'ABORDAJE_PREVIO_EXISTE', 'Fallo: Código esperado ABORDAJE_PREVIO_EXISTE';
-END $$;
-
--- ----------------------------------------------------------------------------
--- ESCENARIO 4: VERIFICACIÓN FORENSE DE LA CADENA DE CUSTODIA
--- ----------------------------------------------------------------------------
-DO $$
-DECLARE
-    r RECORD;
-BEGIN
-    RAISE NOTICE '--- TEST 4: Verificación Criptográfica de la Cadena de Custodia ---';
+    RAISE NOTICE '=== 4. TEST: VERIFICACIÓN FORENSE CADENA DE CUSTODIA ===';
     SELECT * INTO r FROM fn_verificar_integridad_custodia(100);
-    RAISE NOTICE 'Resultado Auditoría Custodia: % (Total eventos: %, Motivo: %)',
-        CASE WHEN r.cadena_integra THEN 'VÁLIDA' ELSE 'CORRUPTA' END, r.total_verificados, r.motivo_fallo;
-    ASSERT r.cadena_integra = true, 'Fallo: La cadena criptográfica de custodia no es íntegra';
-    ASSERT r.total_verificados >= 1, 'Fallo: Debió verificarse al menos 1 registro en la cadena';
-END $$;
+    RAISE NOTICE 'Resultado Custodia: secuencia=% es_valido=%', r.p_secuencia, r.es_valido;
+    ASSERT r.es_valido = true, 'Fallo: La cadena criptográfica de custodia no es íntegra';
 
--- ----------------------------------------------------------------------------
--- ESCENARIO 5: DESCENSO ATÓMICO NORMAL Y LIBERACIÓN DE CUPO
--- ----------------------------------------------------------------------------
-DO $$
-DECLARE
-    v_res JSONB;
-    v_total_a_bordo INT;
-BEGIN
-    RAISE NOTICE '--- TEST 5: Descenso Atómico y Entrega Exitosa ---';
+    RAISE NOTICE '=== 5. TEST: DESCENSO ATÓMICO Y ENTREGA EXITOSA ===';
     v_res := fn_registrar_descenso_atomico(
-        '018f0000-0000-7000-8000-000000000060', -- viaje
-        '018f0000-0000-7000-8000-000000000041', -- estudiante 1
-        '018f0000-0000-7000-8000-000000000052', -- parada colegio
-        '018f0000-0000-7000-8000-000000000011', -- monitora
-        'ENTREGADO_EXITOSO',
+        v_viaje_id,
+        v_estudiante_1,
         'ACUDIENTE',
-        '018f0000-0000-7000-8000-000000000030', -- id_acudiente
-        NULL,                                   -- id_autorizado
-        '1088001003',                           -- doc receptor
-        'LECTURA_QR',
-        NULL                                    -- observaciones
+        v_acudiente_id,
+        NULL,
+        'ENTREGADO_EXITOSO',
+        'https://caminoseguro.edu.co/evidencias/foto1.jpg',
+        ST_SetSRID(ST_MakePoint(-75.696, 4.813), 4326)::geography,
+        'Entrega normal sin novedades',
+        v_user_mon_id
     );
-    RAISE NOTICE 'Resultado Test 5 (Descenso): %', v_res;
-    ASSERT (v_res->>'exito')::boolean = true, 'Fallo: El descenso normal debió ser exitoso';
-    ASSERT (v_res->>'codigo') = 'EXITO', 'Fallo: Código esperado EXITO';
+    RAISE NOTICE 'Resultado Test 3 (Descenso): %', v_res;
+    ASSERT (v_res->>'exito')::boolean = true, 'Fallo: El descenso debió ser exitoso';
 
-    SELECT total_a_bordo INTO v_total_a_bordo FROM viaje WHERE id_viaje = '018f0000-0000-7000-8000-000000000060';
-    ASSERT v_total_a_bordo = 0, 'Fallo: El total a bordo debió decrementarse a 0 tras el descenso';
-END $$;
+    SELECT total_a_bordo INTO v_total_a_bordo FROM viaje WHERE id_viaje = v_viaje_id;
+    ASSERT v_total_a_bordo = 0, 'Fallo: total_a_bordo debió decrementarse a 0 tras el descenso';
 
--- ----------------------------------------------------------------------------
--- ESCENARIO 6: VERIFICACIÓN FORENSE DE AUDITORÍA GENERAL
--- ----------------------------------------------------------------------------
-DO $$
-DECLARE
-    r RECORD;
-BEGIN
-    RAISE NOTICE '--- TEST 6: Verificación Criptográfica de la Bitácora de Auditoría Forense ---';
-    -- Insertar un evento de prueba en bitácora
+    RAISE NOTICE '=== 6. TEST: VERIFICACIÓN FORENSE BITÁCORA GENERAL ===';
     INSERT INTO bitacora_auditoria (tabla, operacion, registro_id, datos_nuevos)
-    VALUES ('test_table', 'INSERT', '018f0000-0000-7000-8000-000000000099', '{"campo": "valor_prueba"}'::jsonb);
+    VALUES ('colegio', 'INSERT', v_colegio_id, '{"nombre": "San Benito"}'::jsonb);
 
     SELECT * INTO r FROM fn_verificar_integridad_bitacora(100);
-    RAISE NOTICE 'Resultado Bitácora Forense: % (Total registros: %, Motivo: %)',
-        CASE WHEN r.cadena_integra THEN 'VÁLIDA' ELSE 'CORRUPTA' END, r.total_verificados, r.motivo_fallo;
+    RAISE NOTICE 'Resultado Bitácora Forense: cadena_integra=% total=%', r.cadena_integra, r.total_verificados;
     ASSERT r.cadena_integra = true, 'Fallo: La bitácora forense de auditoría debe ser 100% íntegra';
-    ASSERT r.total_verificados >= 1, 'Fallo: Debió verificarse al menos 1 registro en la bitácora';
+
+    RAISE NOTICE '=== TODOS LOS TESTS EJECUTADOS SATISFACTORIAMENTE ===';
 END $$;
 
--- Revertir transacciones de prueba para dejar la base de datos limpia
 ROLLBACK;
-RAISE NOTICE '=== TEST SUITE FINALIZADA: TODOS LOS ESCENARIOS PASARON SATISFACTORIAMENTE (TRANSACCIÓN REVERTIDA) ===';

@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # ============================================================================
+  # 1. MOTOR DE BASE DE DATOS: PostgreSQL 16 + PostGIS 3.4
+  # ============================================================================
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: camino-seguro-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: camino_seguro_db
+      POSTGRES_USER: app_owner
+      POSTGRES_PASSWORD: dev_owner_password_san_benito_2026
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/00_init_roles_dev.sql:/docker-entrypoint-initdb.d/00_init_roles_dev.sql:ro
+      - ./db/migrations:/docker-entrypoint-initdb.d/migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_owner -d camino_seguro_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - camino_seguro_net
+
+  # ============================================================================
+  # 2. BROKER MQTT: Eclipse Mosquitto (Telemetría GPS Vehicular)
+  # ============================================================================
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: camino-seguro-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883" # Puerto estándar MQTT
+      - "9001:9001" # WebSockets MQTT
+    volumes:
+      - ./docker/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    networks:
+      - camino_seguro_net
+
+  # ============================================================================
+  # 3. CACHÉ Y COLAS TRANSACCIONALES: Redis 7 Alpine
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: camino-seguro-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "dev_redis_secret_password"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "dev_redis_secret_password", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - camino_seguro_net
+
+networks:
+  camino_seguro_net:
+    driver: bridge
+    name: camino_seguro_net
+
+volumes:
+  postgres_data:
+    name: camino_seguro_postgres_data
+  redis_data:
+    name: camino_seguro_redis_data
+  mosquitto_data:
+    name: camino_seguro_mosquitto_data
+  mosquitto_log:
+    name: camino_seguro_mosquitto_log

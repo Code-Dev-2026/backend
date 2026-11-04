@@ -1,4 +1,4 @@
-# Camino Seguro — Backend Core API & Telemetry Engine
+# Camino Seguro — Backend API & Telemetry Engine
 
 [![CI & Security](https://github.com/Code-Dev-2026/backend/actions/workflows/ci.yml/badge.svg)](https://github.com/Code-Dev-2026/backend/actions/workflows/ci.yml)
 [![Node.js](https://img.shields.io/badge/Node.js-20.x%20LTS-339933?logo=node.js)](https://nodejs.org/)
@@ -7,230 +7,252 @@
 [![RealTime](https://img.shields.io/badge/RealTime-Socket.IO%204.x-010101?logo=socketdotio)](https://socket.io/)
 [![IoT Telemetry](https://img.shields.io/badge/IoT-MQTT%20Protocol-660066?logo=eclipse-mosquitto)](https://mqtt.org/)
 [![Security](https://img.shields.io/badge/Security-OWASP%20ASVS%20L2-00599C)](https://owasp.org/www-project-application-security-verification-standard/)
-[![Design](https://img.shields.io/badge/SOLID-100%25%20Compliant-success)](https://en.wikipedia.org/wiki/SOLID)
+[![Design](https://img.shields.io/badge/SOLID-Clean%20Architecture-success)](https://en.wikipedia.org/wiki/SOLID)
+
+> **Sistema de Control Operativo y Seguridad para Rutas Escolares del Colegio San Benito del Otún y Transportes Camino Seguro S.A.S.**  
+> Backend de misión crítica desarrollado en **NestJS con TypeScript**, base de datos relacional y geoespacial **PostgreSQL 16 + PostGIS 3.4**, broker **MQTT Mosquitto** y colas/caché con **Redis**. Implementado bajo **Clean Architecture**, principios **SOLID**, gobernanza de cadena de custodia de menores y estricto cumplimiento de la **Ley 1581 de 2012 (Habeas Data Menores)** con cifrado **AES-256-GCM** e indexación ciega **HMAC-SHA256**.
 
 ---
 
-# Propósito
+## 📋 Requisitos Previos
 
-El sistema **Camino Seguro** es una plataforma integral de misión crítica concebida para salvaguardar la **cadena de custodia física y digital de menores de edad** en el transporte escolar del **Colegio San Benito del Otún** (Pereira, Risaralda), operado en convenio con la empresa **Transportes Camino Seguro S.A.S.**.
+Antes de comenzar, asegúrate de tener instalado en tu máquina de desarrollo:
 
-El backend constituye el núcleo de gobernanza, orquestación telemática vehicular, control transaccional de abordajes y descensos mediante códigos QR dinámicos, auditoría forense inmutable basada en encadenamiento criptográfico y despacho de eventos en tiempo real hacia las familias y la coordinación institucional.
-
----
-
-# Alcance
-
-### Lo que Incluye (SRS Sección 1.2)
-- **Control Biunívoco de Cadena de Custodia:** Registro de eventos de abordaje y desembarque con validación estricta de receptor (Acudiente titular o Adulto Autorizado activo, máximo 3 por estudiante).
-- **Protección Judicial Preventiva:** Detección de mandatos judiciales activos (restricciones de acercamiento) mediante blind indexing, bloqueando de inmediato la entrega física al individuo restringido y activando protocolos de contingencia hacia la sede escolar.
-- **Telemetría e Ingesta IoT en Tiempo Real:** Recepción de coordenadas GPS vehiculares a través de MQTT/HTTPS (latencia objetivo < 2,5 s per RNF-05), con particionamiento mensual y cálculo geográfico PostGIS.
-- **Aislamiento Multi-rol y Privacidad Familiar:** Segmentación estricta (RNF-02) garantizando que cada acudiente consulte únicamente a sus menores a cargo y acceda a la telemetría en vivo del vehículo exclusivamente mientras el menor se encuentre físicamente a bordo.
-- **Sincronización Offline Resiliente:** Mecanismo de persistencia local en SQLite (app monitora) y sincronización idempotente hacia el backend mediante llaves UUIDv7 y detección de duplicidad.
-- **Auditoría Forense Criptográfica WORM:** Bitácora inmutable con encadenamiento SHA-256 secuencial protegido por candado consultivo de transacción (`pg_advisory_xact_lock`).
-- **Esquema Financiero Aislado:** Módulo segregado `billing` para cartera, facturación mensual y registro de pagos, inaccesible para los roles de operación logística.
-
-### Lo que No Incluye (SRS Sección 1.2)
-- Procesamiento bancario directo de pasarelas de pago (se registra el comprobante o referencia; la liquidación interbancaria es externa).
-- Dispositivos de hardware físico GPS o cámaras a bordo (el backend provee únicamente las interfaces de ingesta de telemetría y contratos telemáticos).
-- Rutas intermunicipales o turismo no vinculado al calendario escolar del Colegio San Benito del Otún.
+* **Node.js**: `v20.x LTS` o superior (`v20.14.0+` o `v22.x` recomendados).
+* **npm**: `v10.x` o superior (incluido con Node.js).
+* **Docker & Docker Compose**: Docker Engine `v24+` o Docker Desktop actualizado con soporte para `docker compose`.
+* **Git**: `v2.40+`.
 
 ---
 
-# Objetivos
+## 🚀 Guía de Inicio Rápido (Post-Clonación en menos de 5 minutos)
 
-1. **Garantizar Cero Pérdidas de Custodia:** Proporcionar trazabilidad milimétrica en cada transición de estado del estudiante (`EN_CASA` $\rightarrow$ `A_BORDO_VEHICULO` $\rightarrow$ `EN_COLEGIO` $\rightarrow$ `RETORNO_SEDE_POR_FALLA_ENTREGA`).
-2. **Alta Concurrencia y Resistencia a Condiciones Adversas:** Soporte de operación en zonas de sombra celular con cola de sincronización diferida y control atómico de sobrecupo concurrente (`UPDATE ... WHERE total_a_bordo < capacidad`).
-3. **Privacidad Reforzada (Habeas Data):** Cumplimiento riguroso de la Ley Estatutaria 1581 de 2012 y OWASP ASVS Nivel 2: cifrado de información sensible (AES-256-GCM) y búsquedas mediante índices ciegos deterministas (HMAC-SHA256).
-4. **Respuesta Sub-segundo:** Despacho de notificaciones push críticas y alertas de desvío de ruta en menos de 2,5 segundos hacia las aplicaciones móviles.
+Sigue estos 8 pasos secuenciales para tener el entorno de desarrollo 100% operativo:
 
----
-
-# Stack Tecnológico Oficial
-
-| Capa | Tecnología | Justificación y Rol en el Proyecto |
-| :--- | :--- | :--- |
-| **Runtime & Lenguaje** | **Node.js 20 LTS + TypeScript 5.x** | Ejecución asíncrona no bloqueante, tipado estricto de contratos y alta concurrencia. |
-| **Framework Backend** | **NestJS 10.x** | Arquitectura modular orientada a inyección de dependencias (DIP) y separación limpia de capas. |
-| **Base de Datos Principal** | **PostgreSQL 16 + PostGIS 3.4** | Motor relacional transaccional ACID con soporte geoespacial nativo (GiST, geography Point/LineString). |
-| **Base de Datos Móvil Offline** | **SQLite 3 (Móvil)** | Almacenamiento local en dispositivo de monitora con cola de sincronización idempotente. |
-| **Eventos en Tiempo Real** | **Socket.IO 4.x** | Emisión bidireccional de eventos y seguimiento de ruta en vivo hacia las familias y monitores. |
-| **Protocolo Telemetría IoT** | **MQTT v5 / TLS (MQTTS)** | Ingesta ligera y de bajo consumo de paquetes GPS desde terminales vehiculares. |
-| **Autenticación & Sesión** | **JWT + Argon2id + TOTP MFA** | Autenticación stateless con rotación segura de refresh tokens (detección de reutilización) y MFA. |
-| **Notificaciones Push** | **Firebase Cloud Messaging (FCM)** | Entrega masiva y dirigida de notificaciones operativas y alertas institucionales críticas. |
-
----
-
-# Arquitectura de Software
-
-El sistema backend adopta una **Arquitectura Hexagonal (Puertos y Adaptadores)** combinada con principios **Domain-Driven Design (DDD)** y estricta adherencia a **SOLID**:
-
-```mermaid
-flowchart TD
-    subgraph DrivingAdapters["Adaptadores Primarios (Driving)"]
-        REST["REST API Controllers (NestJS)"]
-        WS["WebSocket Gateway (Socket.IO)"]
-        MQTT_Sub["MQTT Telemetry Subscriber"]
-    end
-
-    subgraph CoreDomain["Núcleo de Dominio & Aplicación (Hexágono)"]
-        direction TB
-        subgraph PortsIn["Puertos de Entrada (Use Cases)"]
-            UC_Auth["IAuthUseCase"]
-            UC_Custody["ICustodyLifecycleUseCase"]
-            UC_Telemetry["ITelemetryIngestUseCase"]
-            UC_Notification["INotificationDispatchUseCase"]
-        end
-
-        subgraph DomainEntities["Entidades & Reglas de Negocio"]
-            E_Viaje["Viaje (Invariante Capacidad)"]
-            E_Custodia["Custodia (Transiciones Válidas)"]
-            E_Alerta["AlertaJudicial (Verificación Blind Index)"]
-            E_Asignacion["AsignacionRuta"]
-        end
-
-        subgraph PortsOut["Puertos de Salida (Secondary Ports)"]
-            P_Repo["ICustodyRepositoryPort"]
-            P_GPS["IGpsRepositoryPort"]
-            P_Audit["IChainAuditPort"]
-            P_Crypto["IKeyVaultCryptoPort"]
-            P_Push["IPushNotificationPort"]
-        end
-    end
-
-    subgraph DrivenAdapters["Adaptadores Secundarios (Driven)"]
-        PostgresRepo["PostgreSQL 16 / PostGIS Adapter"]
-        AuditAdapter["WORM Cryptographic Chain Adapter"]
-        KMSAdapter["Vault / KMS Key Provider"]
-        FCMAdapter["FCM Push Notification Service"]
-    end
-
-    REST --> UC_Custody
-    REST --> UC_Auth
-    WS --> UC_Telemetry
-    MQTT_Sub --> UC_Telemetry
-
-    UC_Custody --> DomainEntities
-    UC_Telemetry --> DomainEntities
-
-    DomainEntities --> PortsOut
-    PortsOut --> PostgresRepo
-    PortsOut --> AuditAdapter
-    PortsOut --> KMSAdapter
-    PortsOut --> FCMAdapter
-```
-
-### Aplicación de Principios SOLID en el Backend
-- **Single Responsibility Principle (SRP):** Cada caso de uso (ej. `RegistrarAbordajeUseCase`, `ValidarReceptorEntregaUseCase`) resuelve una única regla de negocio. Los servicios de persistencia, cifrado y despacho de notificaciones están desacoplados.
-- **Open/Closed Principle (OCP):** El motor de alertas (`AlertaMotorService`) permite suscribir nuevos detectores (desvío de ruta, geocerca, velocidad, detención no autorizada) mediante una interfaz unificada sin alterar el procesador central.
-- **Liskov Substitution Principle (LSP):** Todas las implementaciones de repositorios y clientes de notificación implementan interfaces abstractas sustituibles sin alterar invariantes.
-- **Interface Segregation Principle (ISP):** Interfaces pequeñas y específicas para cada consumidor (ej. `IReadableCustodyState`, `IAppendOnlyAuditChain`, `IGpsStreamPublisher`).
-- **Dependency Inversion Principle (DIP):** Las entidades de dominio no conocen TypeORM, PostGIS ni FCM. Dependen exclusivamente de abstracciones de puertos.
-
----
-
-# Modelo de Datos y Seguridad ASVS Nivel 2
-
-El modelo de datos consolidado comprende **42 entidades y relaciones** estructuradas en dos esquemas (`public` y `billing`), documentado exhaustivamente en:
-- [Diagrama Entidad-Relación Consolidado (Mermaid)](docs/er.md)
-- [Matriz de Trazabilidad con Requisitos SRS v2.0](docs/trazabilidad-srs.md)
-- [Registro de Supuestos, Propuestas y Decisiones Pendientes](docs/supuestos-y-propuestas.md)
-
-### Pilares de Seguridad Implementados:
-1. **Identificadores Anti-Enumeración:** Claves primarias generadas mediante **UUIDv7** ordenables cronológicamente, mitigando ataques IDOR y preservando rendimiento en índices B-Tree.
-2. **Cifrado en Reposo de Datos Sensibles:** Formato estándar `key_version:iv:tag:ciphertext` (AES-256-GCM). Identificaciones y teléfonos de acudientes y autorizados cuentan con búsqueda exacta vía **Blind Index HMAC-SHA256**.
-3. **Auditoría Forense Criptográfica (WORM):** Tablas `bitacora_auditoria` e `historial_estado_custodia` encadenan hashes SHA-256 de forma atómica bajo candado consultivo `pg_advisory_xact_lock(9876543210)`. Triggers de base de datos impiden de forma absoluta cualquier `UPDATE`, `DELETE` o `TRUNCATE`.
-4. **Row-Level Security (RLS) y Segregación:** RLS activo en `estudiante`, `registro_gps` y `notificacion`. El acudiente solo puede visualizar datos de sus propios hijos y telemetría mientras el estudiante permanezca a bordo (`A_BORDO_VEHICULO`).
-
----
-
-# Migraciones de Base de Datos (DDL)
-
-Las migraciones se encuentran secuenciadas en `db/migrations/`:
-- `V001__init_extensions_and_roles.sql`: PostGIS, pgcrypto, btree_gist, roles de base de datos (`app_owner`, `app_user`, `app_user_operations`, `app_user_billing`).
-- `V002__identity_and_access.sql`: Colegio, roles RBAC, usuarios, conductores, coordinadores, acudientes, refresh tokens y backup codes.
-- `V003__students_and_custody_vault.sql`: Estudiantes, adultos autorizados (máx. 3), expediente cifrado y alertas judiciales.
-- `V004__geospatial_routes_and_zones.sql`: Rutas, paradas GiST Point, geocercas poligonales de Pereira y asignaciones biunívocas.
-- `V005__trips_and_gps_partitions.sql`: Viajes con exclusión btree_gist para solapamientos, telemetría GPS particionada mensualmente y función de mantenimiento.
-- `V006__attendance_and_custody_lifecycle.sql`: Asistencia QR, transiciones atómicas de abordaje/descenso, bloqueo judicial en entrega y cadena de custodia.
-- `V007__notifications_and_offline_sync.sql`: Tokens FCM, cola de notificaciones, comunicados institucionales y sync idempotente.
-- `V008__forensic_audit_trail.sql`: Bitácora forense encadenada con SHA-256 e inmutabilidad estricta.
-- `V009__billing_isolated_schema.sql`: Esquema `billing` con cartera, facturas y pagos mensuales.
-- `V010__security_rls_and_permissions.sql`: Asignación de propietarios, permisos mínimos y políticas de Row-Level Security.
-
----
-
-# Estado de Validación DDL
-
-> [!NOTE]
-> **ESTADO DE VALIDACIÓN: VALIDADO AL 100% EN PIPELINE DE INTEGRACIÓN CONTINUA (CI)**
-> Las 10 migraciones de base de datos (`V001` a `V010`) y la suite de pruebas de integridad y reglas de negocio (`test_suite_camino_seguro.sql`) han sido ejecutadas y **validadas satisfactoriamente al 100%** contra un contenedor oficial de **PostgreSQL 16 + PostGIS 3.4** en GitHub Actions (`.github/workflows/ci.yml`).
->
-> ### Resultados Verificados:
-> - **Generador UUIDv7 (RFC 9562):** Validación cronológica libre de desbordamiento de enteros.
-> - **Control Atómico Anti-Sobrecupo:** Reintento con capacidad nominal agotada bloqueado con código `DENEGADO_SOBRECUPO` y registro de incidente.
-> - **Integridad Criptográfica de Custodia:** Función `fn_verificar_integridad_custodia` retornando `es_valido = true`.
-> - **Descenso y Entrega Segura:** Descenso atómico con validación de receptores y decremento atómico de aforo verificado.
-> - **Bitácora Forense WORM:** Encadenamiento secuencial SHA-256 verificado con `cadena_integra = true`.
-> - **Políticas de Row-Level Security (RLS):** Aislamiento familiar y condición de telemetría GPS en vivo vinculada al estado `A_BORDO_VEHICULO`.
-
----
-
-# Estructura del Repositorio
-
-```
-backend/
-├── .github/
-│   ├── ISSUE_TEMPLATE/
-│   │   ├── bug_report.yml
-│   │   ├── feature_request.yml
-│   │   ├── security_issue.yml
-│   │   └── config.yml
-│   └── workflows/
-│       └── ci.yml
-├── db/
-│   ├── migrations/
-│   │   ├── V001__init_extensions_and_roles.sql
-│   │   ├── V002__identity_and_access.sql
-│   │   ├── V003__students_and_custody_vault.sql
-│   │   ├── V004__geospatial_routes_and_zones.sql
-│   │   ├── V005__trips_and_gps_partitions.sql
-│   │   ├── V006__attendance_and_custody_lifecycle.sql
-│   │   ├── V007__notifications_and_offline_sync.sql
-│   │   ├── V008__forensic_audit_trail.sql
-│   │   ├── V009__billing_isolated_schema.sql
-│   │   └── V010__security_rls_and_permissions.sql
-│   └── tests/
-│       └── test_suite_camino_seguro.sql
-├── docs/
-│   ├── er.md
-│   ├── supuestos-y-propuestas.md
-│   └── trazabilidad-srs.md
-├── .env.example
-├── .gitignore
-├── CODEOWNERS
-├── CONTRIBUTING.md
-├── LICENSE
-├── PULL_REQUEST_TEMPLATE.md
-├── README.md
-└── SECURITY.md
-```
-
----
-
-# Configuración y Variables de Entorno
-
-Copiar la plantilla de configuración e ingresar los secretos correspondientes a través del gestor de credenciales:
+### Paso 1: Clonar el repositorio
+Abre tu terminal y clona el proyecto en tu máquina local:
 
 ```bash
+git clone https://github.com/Code-Dev-2026/backend.git
+cd backend
+```
+
+---
+
+### Paso 2: Instalar las dependencias
+Instala los paquetes de producción y desarrollo de NestJS:
+
+```bash
+npm install
+```
+
+---
+
+### Paso 3: Configurar variables de entorno
+Copia la plantilla `.env.example` para crear tu archivo `.env` local:
+
+```bash
+# En Windows (PowerShell) o Linux/macOS:
 cp .env.example .env
 ```
 
-Consultar la documentación detallada de cada variable en [.env.example](.env.example).
+#### 🔑 Variables indispensables ya preconfiguradas para desarrollo local:
+* **`DB_*`**: Conexión a PostgreSQL (`DB_HOST=localhost`, `DB_PORT=5432`, `DB_NAME=camino_seguro_db`, `DB_USER=app_user`, `DB_PASSWORD=dev_app_user_password_2026`).
+* **`REDIS_*`**: Conexión a Redis (`REDIS_HOST=localhost`, `REDIS_PORT=6379`, `REDIS_PASSWORD=dev_redis_secret_password`).
+* **`JWT_*`**: Secretos criptográficos para la firma y rotación de tokens (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`).
+* **`APP_ENCRYPTION_MASTER_KEY`**: Llave maestra de 32 bytes (AES-256-GCM) para cifrar datos sensibles de menores bajo la Ley 1581. Formato en reposo: `v1:iv:tag:ciphertext`.
+* **`APP_BLIND_INDEX_HMAC_KEY`**: Llave HMAC-SHA256 para indexado ciego de documentos, permitiendo búsquedas exactas sin desencriptar la base de datos.
+* **`MQTT_BROKER_URL`**: Conexión al broker telemático local (`mqtt://localhost:1883`).
 
 ---
 
-# Integrantes
+### Paso 4: Levantar la infraestructura local con Docker Compose
+Inicia los servicios de PostgreSQL con PostGIS, Mosquitto MQTT y Redis en segundo plano:
 
-- **Jhonatan Mauricio Muchavisoy Jajoy**
-- **Aura Camila Arteaga Castillo**
+```bash
+docker compose up -d
+```
+
+Verifica que los tres contenedores estén en estado saludable (`healthy` o `Up`):
+
+```bash
+docker compose ps
+```
+
+> **Servicios expuestos:**
+> * 🐘 **PostgreSQL 16 + PostGIS 3.4**: Puerto `5432`
+> * 🦟 **Mosquitto MQTT**: Puerto `1883` (TCP) y `9001` (WebSockets)
+> * 🔴 **Redis 7**: Puerto `6379`
+
+---
+
+### Paso 5: Ejecución y verificación de migraciones de base de datos
+El contenedor de PostgreSQL monta e inicializa automáticamente las migraciones en `/docker-entrypoint-initdb.d/`. Si necesitas ejecutarlas o revertirlas manualmente con TypeORM CLI:
+
+```bash
+# Validar conexión y estado de base de datos
+npm run typeorm query "SELECT version(), PostGIS_Full_Version();"
+```
+
+Las migraciones oficiales versionadas (`db/migrations/V001__...` a `V010__...`) definen:
+1. `V001`: Extensiones `postgis`, `pgcrypto`, `btree_gist`, generador `uuid_generate_v7()` y roles.
+2. `V002`: Esquema de identidad, roles RBAC semilla y sesiones.
+3. `V003`: Estudiantes, expedientes cifrados (Ley 1581) y adultos autorizados (máx. 3).
+4. `V004`: Rutas viales, secuencias de paradas PostGIS (`SRID 4326`) y geocercas ETA.
+5. `V005`: Vehículos con aforo nominal duro, ciclo de vida de viajes y particiones GPS.
+6. `V006`: Asistencia por carné QR, validación $N+1$ y máquina de estados de custodia.
+7. `V007`: Notificaciones push instantáneas y cola de sincronización offline (puntos ciegos).
+8. `V008`: Bitácora forense inmutable WORM encadenada con SHA-256.
+9. `V009`: Esquema desacoplado `billing` (aislamiento estricto de cartera).
+10. `V010`: Políticas de Row-Level Security (RLS) y privilegios mínimos.
+
+---
+
+### Paso 6: Iniciar el servidor en modo desarrollo
+Inicia NestJS con recarga en caliente (*hot-reload*):
+
+```bash
+npm run start:dev
+```
+
+El servidor quedará escuchando en `http://localhost:3000/api/v1`.
+
+---
+
+### Paso 7: Verificación en el navegador (Swagger OpenAPI)
+Abre tu navegador e ingresa a la documentación interactiva de endpoints:
+
+👉 **[http://localhost:3000/api/v1/docs](http://localhost:3000/api/v1/docs)**
+
+Desde Swagger podrás autenticarte con Bearer JWT, probar las rutas de los 13 módulos de dominio y explorar los esquemas de petición y respuesta.
+
+---
+
+### Paso 8: Comandos de pruebas
+Ejecuta la suite de pruebas automatizadas:
+
+```bash
+# Pruebas unitarias
+npm test
+
+# Pruebas unitarias con cobertura de código
+npm run test:cov
+
+# Pruebas de integración E2E
+npm run test:e2e
+```
+
+---
+
+## 🏗️ Arquitectura Modular del Backend (`src/`)
+
+El código sigue estrictamente los principios de **Clean Architecture** y separación por contextos delimitados:
+
+* `src/common/`:
+  * **`crypto/`**: Servicios criptográficos (`AesEncryptionService`, `BlindIndexService`, `HashService` con Argon2id).
+  * **`decorators/`**: `@CurrentUser()`, `@Roles()`, `@Public()`, `@IdempotencyKey()`.
+  * **`guards/`**: `JwtAuthGuard`, `RolesGuard` (RBAC), `MfaGuard` (TOTP).
+  * **`filters/`**: `AllExceptionsFilter` con formato de error uniforme y `correlationId`.
+  * **`interceptors/`**: `LoggingInterceptor` (latencias y auditoría HTTP) y `TransformInterceptor`.
+  * **`pipes/`**: `ParseUUIDv7Pipe`.
+  * **`enums/`**: `RoleEnum`, `CustodyStateEnum`, `TripStateEnum`.
+* `src/config/`:
+  * `database.config.ts`: TypeORM PostgreSQL + PostGIS (`synchronize: false`).
+  * `env.validation.ts`: Validación con esquema Joi en arranque.
+  * `jwt.config.ts`: Parámetros de token y rotación.
+* `src/modules/` (13 Módulos de Dominio):
+  1. `auth`: Login, rotación de tokens con `family_id` y validación MFA TOTP.
+  2. `schools`: Colegio San Benito del Otún (ancla institucional).
+  3. `transport-companies`: Transportes Camino Seguro S.A.S. y flota con capacidad nominal dura.
+  4. `students`: Expedientes de menores protegidos bajo Ley 1581 (sin fotos de estudiantes).
+  5. `custody`: Validación biométrica de receptores, órdenes judiciales de restricción y retorno seguro a sede.
+  6. `routes`: Georreferenciación PostGIS (`Point`, `LineString`, `SRID 4326`) y cálculo de geocercas ETA.
+  7. `trips`: Despacho y máquina de estados de viaje (`PROGRAMADO`, `EN_CURSO`, `COMPLETADO`).
+  8. `attendance`: Escaneo de carné QR, prevención de doble lectura y aforo estricto ($N+1$ denegado).
+  9. `telemetry`: Ingesta MQTT/HTTPS, detección de desvíos >300m y zonas de sombra celular.
+  10. `tracking`: Gateway WebSocket (Socket.IO) con **Privacidad Diferencial** (los padres solo ven el bus si su hijo está a bordo).
+  11. `notifications`: Motor transaccional de alertas push prioritarias (<2.5s) vía FCM y fallback SMS.
+  12. `billing-isolation`: Cartera desacoplada; **prohibido bloquear o discriminar el servicio de ruta por mora (RN-05)**.
+  13. `audit`: Bitácora forense e inmutable de eventos críticos encadenada con SHA-256 (RNF-08).
+
+---
+
+## 👥 Flujo de Trabajo en Equipo para las 20 Issues (GitHub Flow)
+
+Para mantener la estabilidad de la rama principal (`main`), todo el equipo de desarrollo seguirá estrictamente el flujo **GitHub Flow**:
+
+```mermaid
+gitGraph
+   commit id: "Initial-Scaffold"
+   branch feat/issue-01-auth-jwt
+   checkout feat/issue-01-auth-jwt
+   commit id: "feat: add argon2 login"
+   commit id: "test: unit tests auth"
+   checkout main
+   merge feat/issue-01-auth-jwt id: "PR #1 (Resolves #1)"
+   branch feat/issue-02-qr-attendance
+   checkout feat/issue-02-qr-attendance
+   commit id: "feat: validate n+1 capacity"
+   checkout main
+   merge feat/issue-02-qr-attendance id: "PR #2 (Resolves #2)"
+```
+
+### 1. Nomenclatura obligatoria de ramas
+Cada desarrollo debe realizarse en una rama independiente creada a partir de `main` actualizado:
+
+```bash
+# 1. Asegurar tener el último estado de main
+git checkout main
+git pull origin main
+
+# 2. Crear y cambiar a la rama de la Issue asignada
+git checkout -b feat/issue-XX-nombre-corto
+
+# Ejemplos:
+# git checkout -b feat/issue-01-autenticacion-mfa
+# git checkout -b feat/issue-06-escaneo-qr-asistencia
+# git checkout -b fix/issue-14-calculo-desvio-telemetria
+```
+
+### 2. Convención de Commits (Conventional Commits)
+Redacta mensajes de commit descriptivos y atómicos usando los prefijos estándar:
+
+* `feat:` Nueva funcionalidad o caso de uso (ej. `feat(auth): implement argon2id password hashing and jwt rotation`).
+* `fix:` Corrección de un defecto o bug (ej. `fix(telemetry): correct postgis st_distance tolerance threshold`).
+* `test:` Adición o actualización de pruebas unitarias o de integración (ej. `test(attendance): add unit tests for n+1 capacity denial`).
+* `refactor:` Refactorización de código sin alterar comportamiento externo (ej. `refactor(crypto): streamline aes-256-gcm padding`).
+* `docs:` Cambios o mejoras en la documentación (ej. `docs: update readme with quickstart guide`).
+
+### 3. Creación y vinculación del Pull Request (PR)
+1. Realiza el push de tu rama hacia el repositorio remoto:
+   ```bash
+   git push -u origin feat/issue-XX-nombre-corto
+   ```
+2. Abre el **Pull Request** en GitHub hacia la rama `main`.
+3. En la descripción del Pull Request, incluye la palabra clave obligatoria para cierre automático:
+   ```markdown
+   Resolves #XX
+   ```
+   *(Reemplaza `XX` por el número de la Issue correspondiente, por ejemplo: `Resolves #4`).*
+4. Completa la plantilla de verificación del PR (pruebas ejecutadas, linter aprobado y sin vulnerabilidades).
+
+### 4. 🚫 Regla de Oro: Prohibido el push directo a `main`
+* **Nunca realices `git push origin main` directamente.**
+* Todos los cambios ingresan a `main` exclusivamente mediante **Pull Requests revisados y aprobados**, garantizando que el pipeline de Integración Continua (CI) pase en verde.
+
+---
+
+## 📄 Documentación Técnica Complementaria
+
+* [Diagrama Entidad-Relación Consolidado (Mermaid)](docs/er.md)
+* [Matriz de Trazabilidad: Modelo vs. Requisitos SRS v2.0](docs/trazabilidad-srs.md)
+* [Registro de Supuestos, Propuestas y Decisiones de Arquitectura](docs/supuestos-y-propuestas.md)
+* [Guía de Contribución](CONTRIBUTING.md)
+* [Política de Seguridad](SECURITY.md)
+
+---
+
+## 👥 Integrantes del Proyecto
+
+* **Jhonatan Mauricio Muchavisoy Jajoy** — *Tech Lead & Software Architect*
+* **Aura Camila Arteaga Castillo** — *Core Developer & Systems Engineer*

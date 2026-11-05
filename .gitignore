@@ -1,7 +1,5 @@
 # ==============================================================================
-# CAMINO SEGURO - GITIGNORE OFICIAL
-# Sistema de Control Operativo y Seguridad para Rutas Escolares
-# Colegio San Benito del Otún / Transportes Camino Seguro S.A.S.
+# GITIGNORE OFICIAL - BACKEND NESTJS
 # ==============================================================================
 
 # Node / NestJS Dependencies

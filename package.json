@@ -1,8 +1,8 @@
 {
-  "name": "camino-seguro-backend",
+  "name": "backend",
   "version": "1.0.0",
-  "description": "Sistema de Control Operativo y Seguridad para Rutas Escolares - Colegio San Benito del Otún / Transportes Camino Seguro S.A.S.",
-  "author": "Equipo de Desarrollo Camino Seguro",
+  "description": "Core Backend API - NestJS Clean Architecture",
+  "author": "Code-Dev-2026",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {

@@ -48,7 +48,7 @@ async function bootstrap() {
   // 3. Prefijo Global de Rutas
   app.setGlobalPrefix(apiPrefix);
 
-  // 4. Pipes de Validación Globales (Sanitización y Rechazo de Campos no Permitidos)
+  // 4. Pipes de Validación Globales
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -63,40 +63,14 @@ async function bootstrap() {
   // 5. Filtro Global de Excepciones
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // 6. Interceptores Globales (Logging Estructurado y Envoltorio Estándar de Respuesta)
+  // 6. Interceptores Globales
   app.useGlobalInterceptors(new LoggingInterceptor(), new TransformInterceptor());
 
-  // 7. Documentación OpenAPI / Swagger
+  // 7. Documentación OpenAPI / Swagger Base
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Camino Seguro - Core Backend API')
-    .setDescription(
-      'Sistema de Control Operativo y Seguridad para Rutas Escolares del Colegio San Benito del Otún / Transportes Camino Seguro S.A.S.\n\n' +
-        'Arquitectura Limpia Hexagonal, Cifrado AES-256-GCM (Ley 1581 Habeas Data Menores), PostGIS 3.4 y Monitoreo en Tiempo Real.',
-    )
+    .setTitle('Backend API Core')
+    .setDescription('Servicio base API en NestJS con arquitectura limpia')
     .setVersion('1.0.0')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'JWT',
-        description: 'Ingrese el Access Token JWT generado en /auth/login',
-        in: 'header',
-      },
-      'JWT',
-    )
-    .addTag('Autenticación y Sesiones (Auth & RBAC)')
-    .addTag('Colegios e Instituciones (Schools)')
-    .addTag('Empresas de Transporte y Flota Homologada (Transport Companies)')
-    .addTag('Estudiantes y Bóveda Cifrada (Students & Habeas Data)')
-    .addTag('Custodia, Adultos Autorizados y Restricciones Judiciales (Custody)')
-    .addTag('Rutas Viales y Georreferenciación PostGIS (Routes & Geospatial)')
-    .addTag('Despacho y Ciclo de Vida de Viajes (Trips)')
-    .addTag('Asistencia, Abordaje QR y Control de Aforo (Attendance & Capacity)')
-    .addTag('Telemetría GPS y Sincronización Offline (Telemetry & Sync)')
-    .addTag('Motor Transaccional de Notificaciones Push (Notifications)')
-    .addTag('Cartera y Facturación Desacoplada (Billing Isolation)')
-    .addTag('Bitácora Forense e Inmutable (Forensic Audit Trail)')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
@@ -109,7 +83,7 @@ async function bootstrap() {
   });
 
   await app.listen(port);
-  logger.log(`🚀 Camino Seguro Backend iniciado en el puerto ${port} [Ambiente: ${nodeEnv}]`);
+  logger.log(`🚀 Servidor backend iniciado en el puerto ${port} [Ambiente: ${nodeEnv}]`);
   logger.log(`📚 Documentación Swagger activa en: http://localhost:${port}/${apiPrefix}/docs`);
 }
 

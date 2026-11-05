@@ -52,6 +52,7 @@ tmp/
 temp/
 logs/
 *.log
+backups/
 
 # Docker Local Persistent Data Volumes
 .docker/

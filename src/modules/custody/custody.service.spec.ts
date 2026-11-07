@@ -1,3 +1,4 @@
+import { Test, TestingModule } from "@nestjs/testing";
 import { ForbiddenException } from "@nestjs/common";
 import { CustodyService } from "./custody.service";
 import { CustodyStateEnum } from "@common/enums/custody-state.enum";
@@ -5,8 +6,16 @@ import { CustodyStateEnum } from "@common/enums/custody-state.enum";
 describe("CustodyService (Sprint 2)", () => {
   let service: CustodyService;
 
-  beforeEach(() => {
-    service = new CustodyService();
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [CustodyService],
+    }).compile();
+
+    service = module.get<CustodyService>(CustodyService);
+  });
+
+  it("debe estar definido el servicio de custodia", () => {
+    expect(service).toBeDefined();
   });
 
   it("debe validar un receptor autorizado sin alertas judiciales", async () => {

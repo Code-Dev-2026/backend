@@ -64,3 +64,4 @@ Conforme al SRS RF-13 y migración V002, se configuran 8 perfiles de usuario aut
 6. `MONITORA`: Operación en cabina, escaneo QR de abordaje/desembarque y validación biométrica de receptores.
 7. `CONDUCTOR`: Navegación en ruta, sin acceso a expedientes sensibles de menores.
 8. `ACUDIENTE`: Consulta en vivo del viaje de sus hijos protegidos (Row-Level Security multi-tenant familiar).
+

@@ -71,3 +71,4 @@ Se adopta formalmente el patrón de **Arquitectura Hexagonal (Ports & Adapters)*
 - **Testabilidad Aislada:** La capa de dominio y casos de uso se prueban al 100% mediante mocks en Jest sin requerir conexión a base de datos real o brokers activos.
 - **Principio DIP Garantizado:** Modificaciones en drivers de base de datos o transporte en tiempo real no impactan los contratos ni la lógica de negocio.
 - **Alineación con los 5 Sprints:** Cada equipo de desarrollo puede implementar adaptadores específicos (Issues #2 a #20) respetando los contratos de interfaces ya unificados en el core.
+

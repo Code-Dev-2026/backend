@@ -12,3 +12,4 @@
     "^@modules/(.*)$": "<rootDir>/../src/modules/$1"
   }
 }
+

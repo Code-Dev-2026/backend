@@ -55,3 +55,4 @@ Se establece un modelo de seguridad basado en dos pilares criptográficos comple
 - **Cumplimiento Legal Total:** Pleno amparo legal ante requerimientos de Fiscalía, ICBF o directivas escolares con evidencia forense inmutable.
 - **Protección contra Fuga de Datos:** Incluso ante un volcado (*dump*) no autorizado de la base de datos, la información sensible permanece cifrada e ininteligible.
 - **Rendimiento Óptimo:** Búsquedas por `blind_index` sobre índices B-tree en PostgreSQL con latencia sub-milisegundo.
+

@@ -24,11 +24,11 @@ Orquestar y coordinar la implementación integral de los módulos de base de dat
 - **Entonces** se preserva el 100% de la cadena de custodia con latencia de notificación < 2.5s y cero fallos de inmutabilidad.
 
 ### Tareas Técnicas
-- [ ] Supervisión y cierre del Sprint 0 (Fundaciones e Infraestructura).
-- [ ] Supervisión y cierre del Sprint 1 (Identidad, Expedientes y Matrícula).
-- [ ] Supervisión y cierre del Sprint 2 (Operación de Rutas, Asistencia y Custodia).
-- [ ] Supervisión y cierre del Sprint 3 (Telemetría IoT, Desvíos y WebSocket).
-- [ ] Supervisión y cierre del Sprint 4 (Auditoría Forense, Billing y RLS).
+- [x] Supervisión y cierre del Sprint 0 (Fundaciones e Infraestructura).
+- [x] Supervisión y cierre del Sprint 1 (Identidad, Expedientes y Matrícula).
+- [x] Supervisión y cierre del Sprint 2 (Operación de Rutas, Asistencia y Custodia).
+- [x] Supervisión y cierre del Sprint 3 (Telemetría IoT, Desvíos y WebSocket).
+- [x] Supervisión y cierre del Sprint 4 (Auditoría Forense, Billing y RLS).
 
 ### Principio SOLID Aplicado y Verificación
 - **DIP (Dependency Inversion Principle):** El núcleo de dominio no acopla detalles de infraestructura; los adaptadores externos (PostgreSQL, MQTT, Socket.IO) dependen de abstracciones definidas mediante puertos en NestJS.

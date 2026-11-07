@@ -1,4 +1,4 @@
-import { PipeTransform, Injectable, BadRequestException } from '@nestjs/common';
+import { PipeTransform, Injectable, BadRequestException } from "@nestjs/common";
 
 @Injectable()
 export class ParseUUIDv7Pipe implements PipeTransform<string, string> {
@@ -7,7 +7,9 @@ export class ParseUUIDv7Pipe implements PipeTransform<string, string> {
 
   transform(value: string): string {
     if (!value || !this.uuidRegex.test(value)) {
-      throw new BadRequestException(`El identificador '${value}' no es un UUID válido.`);
+      throw new BadRequestException(
+        `El identificador '${value}' no es un UUID válido.`,
+      );
     }
     return value;
   }

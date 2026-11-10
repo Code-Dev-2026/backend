@@ -1,0 +1,40 @@
+services:
+  # ============================================================================
+  # MOTOR DE BASE DE DATOS: PostgreSQL 16 + PostGIS 3.4
+  # Proyecto: Camino Seguro (Colegio San Benito del Otún)
+  # ============================================================================
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: camino-seguro-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-camino_seguro_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      APP_USER_PASSWORD: ${APP_USER_PASSWORD}
+      APP_USER_OPERATIONS_PASSWORD: ${APP_USER_OPERATIONS_PASSWORD}
+      APP_USER_BILLING_PASSWORD: ${APP_USER_BILLING_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../docker/postgres/00_init_roles_dev.sql:/docker-entrypoint-initdb.d/00_init_roles_dev.sql:ro
+      - ./migrations:/docker-entrypoint-initdb.d/migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-camino_seguro_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - camino_seguro_net
+
+networks:
+  camino_seguro_net:
+    driver: bridge
+    name: camino_seguro_net
+
+volumes:
+  postgres_data:
+    name: camino_seguro_postgres_data

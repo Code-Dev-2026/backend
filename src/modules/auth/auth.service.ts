@@ -1,70 +1,58 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { HashService } from "@common/crypto/hash.service";
-import { LoginDto } from "./dto/login.dto";
-import * as crypto from "crypto";
+import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
+import { UserRecord } from "./domain/auth.models";
+import {
+  IPasswordHasher,
+  PASSWORD_HASHER,
+} from "./domain/password-hasher.interface";
+import { IUserRepository, USER_REPOSITORY } from "./domain/user.repository";
 
+const MENSAJE_CREDENCIALES = "Credenciales inválidas.";
+
+/**
+ * Validación de credenciales (SRP: no emite tokens ni valida OTP).
+ * Todos los fallos devuelven el mismo mensaje para no revelar si el correo
+ * existe, y se hace un hash de relleno cuando el usuario no existe para que
+ * el tiempo de respuesta no lo delate (ASVS V2.2).
+ */
 @Injectable()
 export class AuthService {
+  private dummyHash: Promise<string> | null = null;
+
   constructor(
-    private readonly configService: ConfigService,
-    private readonly hashService: HashService,
+    @Inject(USER_REPOSITORY) private readonly userRepository: IUserRepository,
+    @Inject(PASSWORD_HASHER) private readonly passwordHasher: IPasswordHasher,
   ) {}
 
-  /**
-   * Autenticación inicial de credenciales (Email + Password)
-   */
-  async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
-
+  async validateCredentials(
+    email: string,
+    password: string,
+  ): Promise<UserRecord> {
     if (!email || !password) {
-      throw new UnauthorizedException("Credenciales inválidas.");
+      throw new UnauthorizedException(MENSAJE_CREDENCIALES);
     }
 
-    const mockUserId = "018e38d9-3f00-7200-a000-000000000001";
-    const mockRoles = ["COORDINADORA_CONVIVENCIA", "super_admin"];
+    const user = await this.userRepository.findByEmail(email);
 
-    // Token simulado seguro con HMAC para el andamiaje transversal
-    const jwtSecret = this.configService.get<string>("JWT_SECRET", "secret");
-    const tokenHeader = Buffer.from(
-      JSON.stringify({ alg: "HS256", typ: "JWT" }),
-    ).toString("base64url");
-    const tokenPayload = Buffer.from(
-      JSON.stringify({
-        sub: mockUserId,
-        email,
-        roles: mockRoles,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 900,
-      }),
-    ).toString("base64url");
-    const signature = crypto
-      .createHmac("sha256", jwtSecret)
-      .update(`${tokenHeader}.${tokenPayload}`)
-      .digest("base64url");
-    const accessToken = `${tokenHeader}.${tokenPayload}.${signature}`;
+    if (!user) {
+      await this.passwordHasher.verify(password, await this.getDummyHash());
+      throw new UnauthorizedException(MENSAJE_CREDENCIALES);
+    }
 
-    return {
-      accessToken,
-      refreshToken: crypto.randomBytes(32).toString("hex"),
-      user: {
-        id: mockUserId,
-        email,
-        roles: mockRoles,
-        requiresMfa: true,
-      },
-    };
+    const passwordOk = await this.passwordHasher.verify(
+      password,
+      user.password_hash,
+    );
+    if (!passwordOk || user.estado !== "ACTIVO") {
+      throw new UnauthorizedException(MENSAJE_CREDENCIALES);
+    }
+
+    return user;
   }
 
-  async verifyMfa(userId: string, code: string) {
-    if (!code || code.length !== 6) {
-      throw new UnauthorizedException("Código TOTP de 6 dígitos inválido.");
+  private getDummyHash(): Promise<string> {
+    if (!this.dummyHash) {
+      this.dummyHash = this.passwordHasher.hash("relleno-anti-enumeracion");
     }
-
-    return {
-      userId,
-      mfaVerified: true,
-      timestamp: new Date().toISOString(),
-    };
+    return this.dummyHash;
   }
 }

@@ -117,4 +117,21 @@ describe("RefreshTokenService", () => {
     expect(fulfilled).toHaveLength(1);
     expect(rejected).toHaveLength(1);
   });
+
+  it("revokeAllForUser cierra todas las sesiones del usuario sin falsa alarma", async () => {
+    const a = await service.issue(idUsuario);
+    const b = await service.issue(idUsuario);
+    const otro = await service.issue("018e38d9-3f00-7200-a000-0000000000ff");
+
+    await service.revokeAllForUser(idUsuario);
+
+    await expect(service.rotate(a.token)).rejects.toThrow(
+      UnauthorizedException,
+    );
+    await expect(service.rotate(b.token)).rejects.toThrow(
+      UnauthorizedException,
+    );
+    await expect(service.rotate(otro.token)).resolves.toBeDefined();
+    expect(audit.registrarIncidente).not.toHaveBeenCalled();
+  });
 });

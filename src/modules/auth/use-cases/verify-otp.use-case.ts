@@ -4,20 +4,21 @@ import {
   SECURITY_AUDIT,
 } from "../domain/security-audit.port";
 import { IUserRepository, USER_REPOSITORY } from "../domain/user.repository";
-import { OtpMfaService } from "../otp-mfa.service";
+import { EmailOtpService } from "../email-otp.service";
 import { AuthSession, SessionService } from "../session.service";
 import { TokenService } from "../token.service";
 
 /**
- * Caso de uso: completar el desafío MFA.
- * Valida el token provisional y el código OTP; si son correctos marca la
- * sesión como verificada y emite el Access Token con permisos completos.
+ * Caso de uso: paso 2 del login (POST /auth/verify-otp).
+ * Valida el token provisional y el código OTP enviado por correo. Si son
+ * correctos emite Access Token (15 min) + Refresh Token (7 días) e
+ * invalida las sesiones previas del usuario.
  */
 @Injectable()
-export class VerifyMfaUseCase {
+export class VerifyOtpUseCase {
   constructor(
     private readonly tokenService: TokenService,
-    private readonly otpMfaService: OtpMfaService,
+    private readonly emailOtpService: EmailOtpService,
     private readonly sessionService: SessionService,
     @Inject(USER_REPOSITORY) private readonly userRepository: IUserRepository,
     @Inject(SECURITY_AUDIT) private readonly securityAudit: ISecurityAuditPort,
@@ -28,17 +29,23 @@ export class VerifyMfaUseCase {
 
     const user = await this.userRepository.findById(subject.id_usuario);
     if (!user || user.estado !== "ACTIVO") {
-      throw new UnauthorizedException("Desafío MFA inválido.");
+      throw new UnauthorizedException("Desafío de verificación inválido.");
     }
 
-    const valid = await this.otpMfaService.verify(user.id_usuario, code);
+    const valid = await this.emailOtpService.verify(
+      user.id_usuario,
+      subject.challengeId,
+      code,
+    );
     if (!valid) {
       await this.securityAudit.registrarIncidente({
         tipo_evento: "MFA_VERIFY_FAILED",
         id_usuario: user.id_usuario,
-        payload: {},
+        payload: { canal: "EMAIL" },
       });
-      throw new UnauthorizedException("Código de verificación inválido.");
+      throw new UnauthorizedException(
+        "Código de verificación inválido o expirado.",
+      );
     }
 
     await this.userRepository.registrarUltimoIngreso(
@@ -48,7 +55,7 @@ export class VerifyMfaUseCase {
     await this.securityAudit.registrarIncidente({
       tipo_evento: "MFA_VERIFY",
       id_usuario: user.id_usuario,
-      payload: {},
+      payload: { canal: "EMAIL" },
     });
 
     return this.sessionService.open(user, true);

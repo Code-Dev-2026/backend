@@ -14,6 +14,7 @@ export enum RoleEnum {
   ACUDIENTE = "ACUDIENTE", // Padre o tutor legal
 
   // Alias normalizados para compatibilidad con RBAC
+  ADMIN = "ADMIN", // Alias de @Roles('ADMIN'): superadministración institucional
   SUPER_ADMIN = "super_admin",
   SCHOOL_COORDINATOR = "school_coordinator",
   TRANSPORT_ADMIN = "transport_admin",
@@ -26,6 +27,11 @@ export enum RoleEnum {
  * Mapeador bidireccional entre nombres de base de datos y slugs normalizados
  */
 export const ROLE_EQUIVALENCES: Record<string, string[]> = {
+  [RoleEnum.ADMIN]: [
+    RoleEnum.COORDINADORA_CONVIVENCIA,
+    RoleEnum.SUPER_ADMIN,
+    RoleEnum.ADMIN,
+  ],
   [RoleEnum.SUPER_ADMIN]: [
     RoleEnum.COORDINADORA_CONVIVENCIA,
     RoleEnum.SUPER_ADMIN,

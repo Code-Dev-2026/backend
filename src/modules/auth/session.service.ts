@@ -4,7 +4,6 @@ import { RefreshTokenService } from "./refresh-token.service";
 import { TokenService, TokenSubject } from "./token.service";
 
 export const ACCESS_TOKEN_TTL_SECONDS = 900;
-export const MFA_CHALLENGE_TTL_SECONDS = 300;
 
 export interface PublicUser {
   id_usuario: string;
@@ -35,8 +34,12 @@ export class SessionService {
     private readonly refreshTokenService: RefreshTokenService,
   ) {}
 
-  /** Abre una sesión nueva (familia de refresh tokens nueva). */
+  /**
+   * Abre una sesión nueva (familia de refresh tokens nueva) e INVALIDA las
+   * sesiones previas del usuario: solo queda viva la del último login.
+   */
   async open(user: UserRecord, mfaVerified: boolean): Promise<AuthSession> {
+    await this.refreshTokenService.revokeAllForUser(user.id_usuario);
     const accessToken = await this.signAccess(user, mfaVerified);
     const refresh = await this.refreshTokenService.issue(user.id_usuario);
 
@@ -52,9 +55,12 @@ export class SessionService {
     return this.tokenService.signAccessToken(toSubject(user), mfaVerified);
   }
 
-  /** Token provisional que solo sirve para completar el desafío MFA. */
-  challenge(user: UserRecord): Promise<string> {
-    return this.tokenService.signMfaChallengeToken(toSubject(user));
+  /** Token provisional que solo sirve para completar el desafío OTP. */
+  challenge(user: UserRecord, challengeId: string): Promise<string> {
+    return this.tokenService.signMfaChallengeToken(
+      toSubject(user),
+      challengeId,
+    );
   }
 
   publicUser(user: UserRecord): PublicUser {

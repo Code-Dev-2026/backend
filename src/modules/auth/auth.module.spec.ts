@@ -63,9 +63,22 @@ describe("AuthModule", () => {
   it("en producción acepta un secreto propio de 32 caracteres o más", async () => {
     process.env.NODE_ENV = "production";
     delete process.env.JWT_SECRET;
-    const module = await compilar({ JWT_SECRET: SECRETO_PROPIO });
+    const module = await compilar({
+      JWT_SECRET: SECRETO_PROPIO,
+      SMTP_HOST: "smtp.example.com",
+    });
 
     expect(module.get(AuthController)).toBeDefined();
     await module.close();
+  });
+
+  it("en producción falla al arrancar si no hay SMTP_HOST para enviar el OTP", async () => {
+    process.env.NODE_ENV = "production";
+    delete process.env.JWT_SECRET;
+    delete process.env.SMTP_HOST;
+
+    await expect(compilar({ JWT_SECRET: SECRETO_PROPIO })).rejects.toThrow(
+      "SMTP_HOST",
+    );
   });
 });

@@ -87,7 +87,7 @@ describe("JwtAuthGuard", () => {
 
   it("debe rechazar el token provisional MFA como Access Token", async () => {
     const guard = new JwtAuthGuard(makeReflector(false), tokens);
-    const challenge = await tokens.signMfaChallengeToken(subject);
+    const challenge = await tokens.signMfaChallengeToken(subject, "desafio-1");
     const request = { headers: { authorization: `Bearer ${challenge}` } };
 
     await expect(guard.canActivate(makeContext(request))).rejects.toThrow(

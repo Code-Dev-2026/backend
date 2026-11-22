@@ -24,6 +24,10 @@ export class InMemoryUserRepository implements IUserRepository {
     }
   }
 
+  async create(user: UserRecord): Promise<void> {
+    this.add(user);
+  }
+
   async findByEmail(email: string): Promise<UserRecord | null> {
     const wanted = email.trim().toLowerCase();
     for (const user of this.users.values()) {

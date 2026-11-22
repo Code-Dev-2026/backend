@@ -22,6 +22,14 @@ export interface ITokenRepository {
 
   /** Revoca todos los tokens de una familia (detección de robo). */
   revokeFamily(familyId: string): Promise<void>;
+
+  /**
+   * Cierra todas las sesiones del usuario ELIMINANDO sus refresh tokens
+   * (DELETE ... WHERE id_usuario = $1). Se eliminan en vez de marcarse como
+   * revocados para que presentar uno viejo dé NOT_FOUND y no dispare una
+   * falsa alarma de reutilización.
+   */
+  revokeAllForUser(idUsuario: string): Promise<void>;
 }
 
 export const TOKEN_REPOSITORY = Symbol("ITokenRepository");

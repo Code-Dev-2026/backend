@@ -68,4 +68,28 @@ describe("RolesGuard (RBAC)", () => {
     });
     expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
   });
+
+  it("@Roles('ADMIN') permite a la coordinadora (superadministradora)", () => {
+    jest.spyOn(reflector, "getAllAndOverride").mockReturnValue(["ADMIN"]);
+    const context = createMockContext({
+      id_usuario: "1",
+      roles: [RoleEnum.COORDINADORA_CONVIVENCIA],
+    });
+    expect(guard.canActivate(context)).toBe(true);
+  });
+
+  it.each([RoleEnum.MONITORA, RoleEnum.CONDUCTOR, RoleEnum.ACUDIENTE])(
+    "@Roles('ADMIN') deniega con 403 al rol %s",
+    (rol) => {
+      jest.spyOn(reflector, "getAllAndOverride").mockReturnValue(["ADMIN"]);
+      const context = createMockContext({ id_usuario: "1", roles: [rol] });
+      try {
+        guard.canActivate(context);
+        fail("Se esperaba ForbiddenException");
+      } catch (error) {
+        expect(error).toBeInstanceOf(ForbiddenException);
+        expect((error as ForbiddenException).getStatus()).toBe(403);
+      }
+    },
+  );
 });

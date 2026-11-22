@@ -4,6 +4,7 @@ import { UserRecord } from "./auth.models";
 export interface IUserRepository {
   findByEmail(email: string): Promise<UserRecord | null>;
   findById(idUsuario: string): Promise<UserRecord | null>;
+  create(user: UserRecord): Promise<void>;
   registrarUltimoIngreso(idUsuario: string, fecha: Date): Promise<void>;
 }
 

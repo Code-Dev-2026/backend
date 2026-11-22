@@ -16,6 +16,11 @@ export class HashService {
     return crypto.createHash("sha256").update(data, "utf8").digest("hex");
   }
 
+  /** SHA-256 de un contenido binario (p. ej. un archivo subido), en hex. */
+  sha256Buffer(data: Buffer): string {
+    return crypto.createHash("sha256").update(data).digest("hex");
+  }
+
   /**
    * Genera hash de encadenamiento para auditoría: SHA-256(id + hash_anterior + payload + salt)
    */

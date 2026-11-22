@@ -1,13 +1,11 @@
 import {
   ConflictException,
-  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import { CryptoVaultService } from "@common/crypto/crypto-vault.service";
 import { AuthenticatedUser } from "@common/decorators/current-user.decorator";
-import { RoleEnum, userHasAnyRole } from "@common/enums/role.enum";
 import { AuditService } from "../audit/audit.service";
 import {
   NewStudentData,
@@ -20,12 +18,9 @@ import {
   IStudentRepository,
   STUDENT_REPOSITORY,
 } from "./domain/student.repository";
+import { assertExpedienteAccess } from "./students.permissions";
 
-/** Roles administrativos autorizados a ver expedientes (con MFA). */
-export const EXPEDIENTE_ROLES: readonly string[] = [
-  RoleEnum.ADMIN, // coordinadora de convivencia / superadministración
-  RoleEnum.RECTORIA,
-];
+export { EXPEDIENTE_ROLES } from "./students.permissions";
 
 export interface StudentListResult {
   items: StudentSummary[];
@@ -134,17 +129,7 @@ export class StudentsService {
 
   /** Defensa en profundidad: nada se descifra sin rol y MFA suficientes. */
   private assertCanAccess(actor: AuthenticatedUser | undefined) {
-    if (!actor || !userHasAnyRole(actor.roles ?? [], EXPEDIENTE_ROLES)) {
-      throw new ForbiddenException(
-        "Acceso denegado: los expedientes requieren un rol administrativo.",
-      );
-    }
-    if (!actor.mfa_autenticado) {
-      throw new ForbiddenException(
-        "Acceso denegado: los expedientes requieren verificación de doble factor.",
-      );
-    }
-    return actor;
+    return assertExpedienteAccess(actor);
   }
 
   private registrar(

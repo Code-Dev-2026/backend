@@ -1,60 +1,163 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { AesEncryptionService } from "@common/crypto/aes-encryption.service";
-import { BlindIndexService } from "@common/crypto/blind-index.service";
+import {
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { CryptoVaultService } from "@common/crypto/crypto-vault.service";
+import { AuthenticatedUser } from "@common/decorators/current-user.decorator";
+import { RoleEnum, userHasAnyRole } from "@common/enums/role.enum";
+import { AuditService } from "../audit/audit.service";
+import {
+  NewStudentData,
+  Student,
+  StudentExpediente,
+  StudentSummary,
+} from "./domain/student.entity";
+import {
+  DuplicateStudentError,
+  IStudentRepository,
+  STUDENT_REPOSITORY,
+} from "./domain/student.repository";
 
-export interface StudentProfileDto {
-  id_estudiante: string;
-  codigo_institucional: string;
-  documento_identidad: string;
-  nombres: string;
-  apellidos: string;
-  grado: string;
-  activo: boolean;
+/** Roles administrativos autorizados a ver expedientes (con MFA). */
+export const EXPEDIENTE_ROLES: readonly string[] = [
+  RoleEnum.ADMIN, // coordinadora de convivencia / superadministración
+  RoleEnum.RECTORIA,
+];
+
+export interface StudentListResult {
+  items: StudentSummary[];
+  total: number;
+  offset: number;
+  limit: number;
 }
 
+/**
+ * Expedientes de estudiantes (Ley 1581 — datos de menores).
+ * - Persiste solo texto cifrado (AES-256-GCM) e índice ciego (HMAC-SHA256).
+ * - Descifra únicamente en memoria y solo para un usuario autenticado con
+ *   rol administrativo y MFA verificado (se revalida aquí además del guard).
+ * - Cada acceso queda en la bitácora forense SIN datos personales.
+ */
 @Injectable()
 export class StudentsService {
   constructor(
-    private readonly aesService: AesEncryptionService,
-    private readonly blindIndexService: BlindIndexService,
+    @Inject(STUDENT_REPOSITORY)
+    private readonly repository: IStudentRepository,
+    private readonly vault: CryptoVaultService,
+    private readonly audit: AuditService,
   ) {}
 
-  /**
-   * Registro o consulta de estudiante con cifrado en reposo AES-256-GCM y Blind Indexing
-   */
-  async getStudentById(id_estudiante: string) {
-    if (id_estudiante === "not-found") {
-      throw new NotFoundException(`Estudiante ${id_estudiante} no encontrado.`);
+  async create(
+    data: NewStudentData,
+    actor: AuthenticatedUser | undefined,
+  ): Promise<StudentExpediente> {
+    const user = this.assertCanAccess(actor);
+    const record = Student.create(data, this.vault);
+
+    try {
+      await this.repository.save(record);
+    } catch (error) {
+      if (error instanceof DuplicateStudentError) {
+        throw new ConflictException(
+          error.field === "documento"
+            ? "Ya existe un estudiante con ese documento."
+            : "Ya existe un estudiante con ese código institucional.",
+        );
+      }
+      throw error;
     }
 
-    const encryptedData = {
-      id_estudiante,
-      codigo_institucional: "EST-2026-089",
-      nombres_cifrado: this.aesService.encrypt("Mateo"),
-      apellidos_cifrado: this.aesService.encrypt("Gómez Restrepo"),
-      grado: "4A",
-      qr_token_hash: "3a7b8c...hash_sha256",
-      activo: true,
-    };
+    await this.registrar("EXPEDIENTE_CREADO", user, record.id_estudiante);
+    return Student.toExpediente(record, this.vault);
+  }
+
+  async getExpediente(
+    idEstudiante: string,
+    actor: AuthenticatedUser | undefined,
+  ): Promise<StudentExpediente> {
+    const user = this.assertCanAccess(actor);
+    const record = await this.repository.findById(idEstudiante);
+    if (!record) {
+      throw new NotFoundException("Estudiante no encontrado.");
+    }
+
+    await this.registrar("EXPEDIENTE_CONSULTADO", user, record.id_estudiante);
+    return Student.toExpediente(record, this.vault);
+  }
+
+  /** Búsqueda exacta por documento sobre `documento_blind_index`. */
+  async findByDocument(
+    documento: string,
+    actor: AuthenticatedUser | undefined,
+  ): Promise<StudentExpediente> {
+    const user = this.assertCanAccess(actor);
+    const blindIndex = Student.blindIndex(documento, this.vault);
+    const record = await this.repository.findByBlindIndex(blindIndex);
+
+    await this.registrar(
+      "EXPEDIENTE_BUSQUEDA_DOCUMENTO",
+      user,
+      record?.id_estudiante,
+      { encontrado: Boolean(record) },
+    );
+
+    if (!record) {
+      throw new NotFoundException("No hay un estudiante con ese documento.");
+    }
+    return Student.toExpediente(record, this.vault);
+  }
+
+  async list(
+    offset: number,
+    limit: number,
+    actor: AuthenticatedUser | undefined,
+  ): Promise<StudentListResult> {
+    const user = this.assertCanAccess(actor);
+    const page = await this.repository.list(offset, limit);
+
+    await this.registrar("EXPEDIENTES_LISTADOS", user, undefined, {
+      offset,
+      limit,
+      cantidad: page.items.length,
+    });
 
     return {
-      id_estudiante: encryptedData.id_estudiante,
-      codigo_institucional: encryptedData.codigo_institucional,
-      nombres: this.aesService.decrypt(encryptedData.nombres_cifrado),
-      apellidos: this.aesService.decrypt(encryptedData.apellidos_cifrado),
-      grado: encryptedData.grado,
-      activo: encryptedData.activo,
+      items: page.items.map((r) => Student.toSummary(r, this.vault)),
+      total: page.total,
+      offset,
+      limit,
     };
   }
 
-  /**
-   * Búsqueda por documento sin descifrar masivamente la base de datos (Blind Index)
-   */
-  async findByDocument(documento: string) {
-    const blindIndex = this.blindIndexService.generateIndex(documento);
-    return {
-      blindIndexFound: blindIndex,
-      resultado: "Coincidencia indexada según Ley 1581",
-    };
+  /** Defensa en profundidad: nada se descifra sin rol y MFA suficientes. */
+  private assertCanAccess(actor: AuthenticatedUser | undefined) {
+    if (!actor || !userHasAnyRole(actor.roles ?? [], EXPEDIENTE_ROLES)) {
+      throw new ForbiddenException(
+        "Acceso denegado: los expedientes requieren un rol administrativo.",
+      );
+    }
+    if (!actor.mfa_autenticado) {
+      throw new ForbiddenException(
+        "Acceso denegado: los expedientes requieren verificación de doble factor.",
+      );
+    }
+    return actor;
+  }
+
+  private registrar(
+    tipo_evento: string,
+    actor: AuthenticatedUser,
+    id_estudiante?: string,
+    payload: Record<string, unknown> = {},
+  ) {
+    return this.audit.logCriticalEvent({
+      tipo_evento,
+      id_usuario: actor.id_usuario,
+      id_estudiante,
+      payload,
+    });
   }
 }

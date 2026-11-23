@@ -1,10 +1,18 @@
 /**
  * Estados del Ciclo de Vida y Custodia del Menor
- * Cumple con SRS Sección 4, RN-01 a RN-07 y Migración V006.
+ * Cumple con SRS RF-06, RF-07, RN-01, Migraciones V006 y V014 (Issue #7).
  */
 export enum CustodyStateEnum {
-  EN_CASA_ESPERA = "EN_CASA_ESPERA",
+  // Estados oficiales de la FSM de Custodia Física (Issue #7 / V014)
+  NO_INICIADO = "NO_INICIADO",
+  EN_ESPERA_ABORDAJE = "EN_ESPERA_ABORDAJE",
   A_BORDO_VEHICULO = "A_BORDO_VEHICULO",
+  EN_COLEGIO = "EN_COLEGIO",
+  ENTREGADO_ACUDIENTE = "ENTREGADO_ACUDIENTE",
+  RETORNO_SEDE_POR_FALLA_ENTREGA = "RETORNO_SEDE_POR_FALLA_ENTREGA",
+
+  // Estados de compatibilidad heredados de placeholders de Sprint 2 (#8/#9)
+  EN_CASA_ESPERA = "EN_CASA_ESPERA",
   EN_CUSTODIA_INSTITUCIONAL = "EN_CUSTODIA_INSTITUCIONAL",
   RETORNO_SEGURO_SEDE = "RETORNO_SEGURO_SEDE",
   ENTREGADO_A_TUTOR = "ENTREGADO_A_TUTOR",

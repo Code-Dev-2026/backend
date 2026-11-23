@@ -17,6 +17,16 @@ export const envValidationSchema = Joi.object({
   DB_USER: Joi.string().default("app_user"),
   DB_PASSWORD: Joi.string().default("camino_seguro_pass"),
   GEO_USE_POSTGIS: Joi.string().valid("true", "false").default("false"),
+  CUSTODY_USE_POSTGRES: Joi.string().valid("true", "false").default("false"),
+  CUSTODY_MORNING_JOB_ENABLED: Joi.string()
+    .valid("true", "false")
+    .default("false"),
+  CUSTODY_MORNING_JOB_HOUR: Joi.number().integer().min(0).max(23).default(5),
+  CUSTODY_MORNING_JOB_MINUTE: Joi.number().integer().min(0).max(59).default(0),
+  CUSTODY_MORNING_JOB_INTERVAL_MS: Joi.number()
+    .integer()
+    .min(1000)
+    .default(60000),
 
   // Seguridad Criptográfica y Ley 1581 (ADR-002)
   CURRENT_KEY_VERSION: Joi.string().default("v1"),

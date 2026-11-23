@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional, OmitType } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   IsInt,
@@ -86,4 +86,19 @@ export class ListStudentsQueryDto {
   @Min(1)
   @Max(100)
   limit: number = 20;
+}
+
+/**
+ * Una fila del archivo de matrículas: mismas reglas que el alta individual,
+ * sin id_colegio (llega una sola vez en el formulario de importación).
+ */
+export class ImportStudentRowDto extends OmitType(CreateStudentDto, [
+  "id_colegio",
+] as const) {}
+
+/** Campos de formulario que acompañan al archivo en POST /students/import. */
+export class ImportStudentsDto {
+  @ApiProperty({ example: "018e38d9-3f00-7200-a000-000000000002" })
+  @IsUUID("all", { message: "id_colegio debe ser un UUID válido." })
+  id_colegio!: string;
 }

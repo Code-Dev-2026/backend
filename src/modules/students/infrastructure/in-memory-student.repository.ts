@@ -4,6 +4,7 @@ import {
   DuplicateStudentError,
   IStudentRepository,
   StudentPage,
+  StudentWriteTransaction,
 } from "../domain/student.repository";
 
 /**
@@ -16,15 +17,76 @@ export class InMemoryStudentRepository implements IStudentRepository {
   private readonly students = new Map<string, StudentRecord>();
 
   async save(record: StudentRecord): Promise<void> {
-    for (const existing of this.students.values()) {
-      if (existing.documento_blind_index === record.documento_blind_index) {
+    this.assertUnique([record]);
+    this.students.set(record.id_estudiante, { ...record });
+  }
+
+  /**
+   * Transacción simulada: las escrituras van a un área de staging que solo
+   * se vuelca a la "tabla" en el COMMIT (de forma síncrona, sin awaits, por
+   * lo que es atómica en el event loop). Si `work` falla, se descarta
+   * entera (ROLLBACK) y la tabla queda exactamente como estaba.
+   */
+  async transaction<T>(
+    work: (tx: StudentWriteTransaction) => Promise<T>,
+  ): Promise<T> {
+    const staged: StudentRecord[] = [];
+    const committed = () => [...this.students.values(), ...staged];
+
+    const tx: StudentWriteTransaction = {
+      findExistingBlindIndexes: async (indexes) => {
+        const wanted = new Set(indexes);
+        return new Set(
+          committed()
+            .map((r) => r.documento_blind_index)
+            .filter((i) => wanted.has(i)),
+        );
+      },
+      findExistingCodigos: async (codigos) => {
+        const wanted = new Set(codigos);
+        return new Set(
+          committed()
+            .map((r) => r.codigo_institucional)
+            .filter((c) => wanted.has(c)),
+        );
+      },
+      insertMany: async (records) => {
+        this.assertUnique(records, staged);
+        staged.push(...records.map((r) => ({ ...r })));
+      },
+    };
+
+    const result = await work(tx); // si lanza: ROLLBACK (staging descartado)
+
+    // COMMIT: revalida contra lo confirmado por otras transacciones
+    this.assertUnique(staged);
+    for (const record of staged) {
+      this.students.set(record.id_estudiante, record);
+    }
+    return result;
+  }
+
+  /** Simula las restricciones UNIQUE de documento_blind_index y código. */
+  private assertUnique(
+    records: StudentRecord[],
+    extra: StudentRecord[] = [],
+  ): void {
+    const indexes = new Set<string>();
+    const codigos = new Set<string>();
+    for (const r of [...this.students.values(), ...extra]) {
+      indexes.add(r.documento_blind_index);
+      codigos.add(r.codigo_institucional);
+    }
+    for (const r of records) {
+      if (indexes.has(r.documento_blind_index)) {
         throw new DuplicateStudentError("documento");
       }
-      if (existing.codigo_institucional === record.codigo_institucional) {
+      if (codigos.has(r.codigo_institucional)) {
         throw new DuplicateStudentError("codigo_institucional");
       }
+      indexes.add(r.documento_blind_index);
+      codigos.add(r.codigo_institucional);
     }
-    this.students.set(record.id_estudiante, { ...record });
   }
 
   async findById(idEstudiante: string): Promise<StudentRecord | null> {

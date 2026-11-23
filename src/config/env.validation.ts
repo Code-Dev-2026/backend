@@ -16,6 +16,7 @@ export const envValidationSchema = Joi.object({
   DB_NAME: Joi.string().default("camino_seguro_db"),
   DB_USER: Joi.string().default("app_user"),
   DB_PASSWORD: Joi.string().default("camino_seguro_pass"),
+  GEO_USE_POSTGIS: Joi.string().valid("true", "false").default("false"),
 
   // Seguridad Criptográfica y Ley 1581 (ADR-002)
   CURRENT_KEY_VERSION: Joi.string().default("v1"),

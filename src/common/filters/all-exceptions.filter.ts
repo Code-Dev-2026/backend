@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import { Request, Response } from "express";
 import * as crypto from "crypto";
+import { sanitize, sanitizeUrl } from "../security/pii-sanitizer";
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -42,9 +43,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     }
 
+    // El log va sanitizado: los mensajes de validación pueden repetir el
+    // valor recibido (p. ej. un documento) y la URL puede contener PII.
     this.logger.error(
-      `[${correlationId}] ${request.method} ${request.url} - Status ${status} - Error: ${JSON.stringify(message)}`,
-      exception instanceof Error ? exception.stack : undefined,
+      `[${correlationId}] ${request.method} ${sanitizeUrl(request.url)} - Status ${status} - Error: ${JSON.stringify(sanitize(message))}`,
+      exception instanceof Error
+        ? (sanitize(exception) as Error).stack
+        : undefined,
     );
 
     response.status(status).json({

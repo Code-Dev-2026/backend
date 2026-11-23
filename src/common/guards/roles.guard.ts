@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { ROLES_KEY } from "../decorators/roles.decorator";
-import { ROLE_EQUIVALENCES, RoleEnum } from "../enums/role.enum";
+import { RoleEnum, userHasAnyRole } from "../enums/role.enum";
 import { AuthenticatedUser } from "../decorators/current-user.decorator";
 
 @Injectable()
@@ -32,27 +32,7 @@ export class RolesGuard implements CanActivate {
       );
     }
 
-    // Expandir roles requeridos con sus equivalencias
-    const allowedSet = new Set<string>();
-    for (const role of requiredRoles) {
-      allowedSet.add(role);
-      const equivalents = ROLE_EQUIVALENCES[role];
-      if (equivalents) {
-        equivalents.forEach((eq) => allowedSet.add(eq));
-      }
-    }
-
-    // Verificar si algún rol del usuario coincide con los permitidos
-    const hasPermission = user.roles.some((userRole) => {
-      if (allowedSet.has(userRole)) return true;
-      const userEquivalents = ROLE_EQUIVALENCES[userRole];
-      if (userEquivalents) {
-        return userEquivalents.some((eq) => allowedSet.has(eq));
-      }
-      return false;
-    });
-
-    if (!hasPermission) {
+    if (!userHasAnyRole(user.roles, requiredRoles)) {
       throw new ForbiddenException(
         `Acceso denegado: Se requiere uno de los roles: [${requiredRoles.join(", ")}]`,
       );

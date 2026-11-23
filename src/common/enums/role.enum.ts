@@ -50,3 +50,24 @@ export const ROLE_EQUIVALENCES: Record<string, string[]> = {
   [RoleEnum.DRIVER]: [RoleEnum.CONDUCTOR, RoleEnum.DRIVER],
   [RoleEnum.PARENT]: [RoleEnum.ACUDIENTE, RoleEnum.PARENT],
 };
+
+/**
+ * ¿Alguno de los roles del usuario satisface alguno de los requeridos?
+ * Tiene en cuenta las equivalencias entre roles de BD y alias RBAC.
+ */
+export function userHasAnyRole(
+  userRoles: readonly string[],
+  requiredRoles: readonly string[],
+): boolean {
+  const allowed = new Set<string>();
+  for (const role of requiredRoles) {
+    allowed.add(role);
+    ROLE_EQUIVALENCES[role]?.forEach((eq) => allowed.add(eq));
+  }
+
+  return userRoles.some(
+    (userRole) =>
+      allowed.has(userRole) ||
+      (ROLE_EQUIVALENCES[userRole] ?? []).some((eq) => allowed.has(eq)),
+  );
+}

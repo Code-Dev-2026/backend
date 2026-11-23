@@ -66,6 +66,8 @@ describe("AuthModule", () => {
     const module = await compilar({
       JWT_SECRET: SECRETO_PROPIO,
       SMTP_HOST: "smtp.example.com",
+      APP_ENCRYPTION_MASTER_KEY: Buffer.alloc(32, 1).toString("base64"),
+      APP_BLIND_INDEX_HMAC_KEY: Buffer.alloc(32, 2).toString("base64"),
     });
 
     expect(module.get(AuthController)).toBeDefined();

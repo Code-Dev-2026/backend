@@ -7,10 +7,13 @@ import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "@common/filters/all-exceptions.filter";
 import { LoggingInterceptor } from "@common/interceptors/logging.interceptor";
 import { TransformInterceptor } from "@common/interceptors/transform.interceptor";
+import { SanitizingLogger } from "@common/security/sanitizing-logger";
 
 async function bootstrap() {
   const logger = new Logger("Bootstrap");
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  // Todos los logs (propios y de Nest) pasan por el sanitizador de PII
+  app.useLogger(new SanitizingLogger());
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>("PORT", 3000);

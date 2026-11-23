@@ -18,6 +18,13 @@ export const envValidationSchema = Joi.object({
   DB_PASSWORD: Joi.string().default("camino_seguro_pass"),
   GEO_USE_POSTGIS: Joi.string().valid("true", "false").default("false"),
   CUSTODY_USE_POSTGRES: Joi.string().valid("true", "false").default("false"),
+  ATTENDANCE_USE_POSTGRES: Joi.string()
+    .valid("true", "false")
+    .default("false"),
+  QR_DYNAMIC_HMAC_SECRET: Joi.string().default(
+    "dev_qr_dynamic_hmac_secret_camino_seguro_2026",
+  ),
+  QR_DYNAMIC_TTL_SECONDS: Joi.number().integer().min(30).max(86400).default(300),
   CUSTODY_MORNING_JOB_ENABLED: Joi.string()
     .valid("true", "false")
     .default("false"),

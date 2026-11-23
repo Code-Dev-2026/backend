@@ -92,4 +92,9 @@ export class RefreshTokenService {
   async revokeFamily(familyId: string): Promise<void> {
     await this.tokenRepository.revokeFamily(familyId);
   }
+
+  /** Revoca todas las sesiones previas del usuario (login nuevo). */
+  async revokeAllForUser(idUsuario: string): Promise<void> {
+    await this.tokenRepository.revokeAllForUser(idUsuario);
+  }
 }

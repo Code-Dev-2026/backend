@@ -33,16 +33,17 @@ describe("TokenService", () => {
   });
 
   it("debe emitir un token provisional MFA de 5 minutos", async () => {
-    const token = await service.signMfaChallengeToken(subject);
+    const token = await service.signMfaChallengeToken(subject, "desafio-1");
     const decoded = jwt.decode(token) as { iat: number; exp: number };
     const result = await service.verifyMfaChallengeToken(token);
 
     expect(decoded.exp - decoded.iat).toBe(300);
     expect(result.id_usuario).toBe(subject.id_usuario);
+    expect(result.challengeId).toBe("desafio-1");
   });
 
   it("debe rechazar un token provisional MFA usado como Access Token", async () => {
-    const challenge = await service.signMfaChallengeToken(subject);
+    const challenge = await service.signMfaChallengeToken(subject, "desafio-1");
 
     await expect(service.verifyAccessToken(challenge)).rejects.toThrow(
       UnauthorizedException,
@@ -78,7 +79,12 @@ describe("TokenService", () => {
     const token = await service.signAccessToken(subject, false);
     const [header, , signature] = token.split(".");
     const forgedPayload = Buffer.from(
-      JSON.stringify({ ...subject, sub: subject.id_usuario, mfa: true, typ: "access" }),
+      JSON.stringify({
+        ...subject,
+        sub: subject.id_usuario,
+        mfa: true,
+        typ: "access",
+      }),
     ).toString("base64url");
 
     await expect(

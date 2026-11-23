@@ -1,7 +1,7 @@
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { LoginDto } from "./login.dto";
-import { MfaVerifyDto } from "./mfa-verify.dto";
+import { VerifyOtpDto } from "./verify-otp.dto";
 import { RefreshTokenDto } from "./refresh-token.dto";
 
 async function errores<T extends object>(
@@ -42,31 +42,24 @@ describe("DTOs de auth", () => {
     });
   });
 
-  describe("MfaVerifyDto", () => {
-    it("acepta un código TOTP de 6 dígitos", async () => {
+  describe("VerifyOtpDto", () => {
+    it("acepta un código OTP de 6 dígitos", async () => {
       await expect(
-        errores(MfaVerifyDto, { mfaToken: "abc.def.ghi", code: "123456" }),
+        errores(VerifyOtpDto, { mfaToken: "abc.def.ghi", code: "123456" }),
       ).resolves.toEqual([]);
     });
 
-    it("acepta un código de respaldo de 10 caracteres hexadecimales", async () => {
-      await expect(
-        errores(MfaVerifyDto, { mfaToken: "abc.def.ghi", code: "a1b2c3d4e5" }),
-      ).resolves.toEqual([]);
-    });
-
-    it("rechaza un código con formato inválido", async () => {
-      await expect(
-        errores(MfaVerifyDto, { mfaToken: "abc.def.ghi", code: "12" }),
-      ).resolves.toContain("code");
-      await expect(
-        errores(MfaVerifyDto, { mfaToken: "abc.def.ghi", code: "zzzzzz" }),
-      ).resolves.toContain("code");
+    it("rechaza códigos que no son exactamente 6 dígitos", async () => {
+      for (const code of ["12", "1234567", "abcdef", "12 345", ""]) {
+        await expect(
+          errores(VerifyOtpDto, { mfaToken: "abc.def.ghi", code }),
+        ).resolves.toContain("code");
+      }
     });
 
     it("rechaza un token provisional vacío", async () => {
       await expect(
-        errores(MfaVerifyDto, { mfaToken: "", code: "123456" }),
+        errores(VerifyOtpDto, { mfaToken: "", code: "123456" }),
       ).resolves.toContain("mfaToken");
     });
   });

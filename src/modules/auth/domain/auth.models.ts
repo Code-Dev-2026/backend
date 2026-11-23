@@ -25,6 +25,16 @@ export interface RefreshTokenRecord {
   expira_en: Date;
 }
 
+/** Desafío OTP enviado por correo (segundo paso del login). */
+export interface EmailOtpRecord {
+  id_desafio: string; // UUIDv7, viaja en el token provisional (claim `cid`)
+  id_usuario: string;
+  code_hash: string; // SHA-256(id_desafio:código); el código nunca se guarda
+  expira_en: Date;
+  intentos: number;
+  consumido: boolean;
+}
+
 /** Tabla `mfa_secret`. */
 export interface MfaSecretRecord {
   id_usuario: string;

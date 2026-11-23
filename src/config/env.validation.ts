@@ -31,6 +31,17 @@ export const envValidationSchema = Joi.object({
   JWT_EXPIRES_IN: Joi.string().default("15m"),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default("7d"),
 
+  // Correo saliente (OTP de doble factor). Sin SMTP_HOST, en desarrollo
+  // el código se escribe en el log; en producción el arranque falla.
+  SMTP_HOST: Joi.string().allow("").optional(),
+  SMTP_PORT: Joi.number().default(587),
+  SMTP_SECURE: Joi.boolean().default(false),
+  SMTP_USER: Joi.string().allow("").optional(),
+  SMTP_PASSWORD: Joi.string().allow("").optional(),
+  MAIL_FROM: Joi.string().default(
+    "Camino Seguro <no-reply@caminoseguro.edu.co>",
+  ),
+
   // Broker IoT MQTT y WebSockets
   MQTT_BROKER_URL: Joi.string().default("mqtt://localhost:1883"),
 });

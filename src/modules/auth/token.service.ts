@@ -13,6 +13,8 @@ interface TokenPayload {
   roles: string[];
   mfa: boolean;
   typ: TokenType;
+  /** Id del desafío OTP (solo en el token provisional). */
+  cid?: string;
 }
 
 export interface TokenSubject {
@@ -21,10 +23,15 @@ export interface TokenSubject {
   roles: string[];
 }
 
+export interface MfaChallengeSubject extends TokenSubject {
+  challengeId: string;
+}
+
 /**
  * Emisión y validación de JWT (SRP: solo tokens, sin credenciales ni OTP).
  * - Access Token (15 min): sesión completa.
- * - Token provisional MFA (5 min): solo sirve para POST /auth/mfa/verify.
+ * - Token provisional MFA (5 min): solo sirve para POST /auth/verify-otp
+ *   y va ligado al desafío OTP enviado por correo (claim `cid`).
  */
 @Injectable()
 export class TokenService {
@@ -37,8 +44,17 @@ export class TokenService {
     return this.sign(subject, "access", mfaVerified, ACCESS_TOKEN_TTL);
   }
 
-  signMfaChallengeToken(subject: TokenSubject): Promise<string> {
-    return this.sign(subject, "mfa_challenge", false, MFA_CHALLENGE_TTL);
+  signMfaChallengeToken(
+    subject: TokenSubject,
+    challengeId: string,
+  ): Promise<string> {
+    return this.sign(
+      subject,
+      "mfa_challenge",
+      false,
+      MFA_CHALLENGE_TTL,
+      challengeId,
+    );
   }
 
   async verifyAccessToken(token: string): Promise<AuthenticatedUser> {
@@ -51,12 +67,16 @@ export class TokenService {
     };
   }
 
-  async verifyMfaChallengeToken(token: string): Promise<TokenSubject> {
+  async verifyMfaChallengeToken(token: string): Promise<MfaChallengeSubject> {
     const payload = await this.verify(token, "mfa_challenge");
+    if (!payload.cid) {
+      throw new UnauthorizedException("Tipo de token no válido.");
+    }
     return {
       id_usuario: payload.sub,
       email: payload.email,
       roles: payload.roles,
+      challengeId: payload.cid,
     };
   }
 
@@ -65,6 +85,7 @@ export class TokenService {
     typ: TokenType,
     mfa: boolean,
     expiresIn: string,
+    challengeId?: string,
   ): Promise<string> {
     const payload: TokenPayload = {
       sub: subject.id_usuario,
@@ -72,6 +93,7 @@ export class TokenService {
       roles: subject.roles,
       mfa,
       typ,
+      ...(challengeId ? { cid: challengeId } : {}),
     };
     return this.jwtService.signAsync(payload, {
       expiresIn,

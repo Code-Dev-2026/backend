@@ -1,42 +1,43 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { AuthService } from "../auth.service";
-import { requiresMfa } from "../domain/auth-policy";
 import { UserRecord } from "../domain/auth.models";
 import {
   ISecurityAuditPort,
   SECURITY_AUDIT,
 } from "../domain/security-audit.port";
-import { IUserRepository, USER_REPOSITORY } from "../domain/user.repository";
 import { LoginDto } from "../dto/login.dto";
-import {
-  AuthSession,
-  MFA_CHALLENGE_TTL_SECONDS,
-  SessionService,
-} from "../session.service";
+import { EMAIL_OTP_DIGITS, EmailOtpService } from "../email-otp.service";
+import { SessionService } from "../session.service";
 
-export interface MfaChallengeResult {
+export interface LoginResult {
   requiresMfa: true;
-  /** Token provisional: solo sirve en POST /auth/mfa/verify. */
+  /** Token provisional: solo sirve en POST /auth/verify-otp. */
   mfaToken: string;
-  mfaChallenge: { type: "TOTP"; digits: 6 };
+  mfaChallenge: { type: "EMAIL_OTP"; digits: 6; destination: string };
   expiresIn: number;
 }
 
-export type LoginResult =
-  | MfaChallengeResult
-  | ({ requiresMfa: false } & AuthSession);
+/** Oculta el correo en la respuesta: "acudiente@correo.co" -> "ac***@correo.co". */
+export function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!domain) {
+    return "***";
+  }
+  return `${local.slice(0, Math.min(2, local.length))}***@${domain}`;
+}
 
 /**
- * Caso de uso: login con correo y contraseña.
- * Si el rol exige MFA, entrega un token provisional y el desafío OTP de
- * 6 dígitos; el Access Token definitivo solo sale tras /auth/mfa/verify.
+ * Caso de uso: paso 1 del login (correo + contraseña).
+ * Valida las credenciales con Argon2id y envía un código OTP de 6 dígitos al
+ * correo registrado. NO entrega Access ni Refresh Token: eso solo ocurre en
+ * POST /auth/verify-otp. Aplica a todos los roles.
  */
 @Injectable()
 export class LoginUseCase {
   constructor(
     private readonly authService: AuthService,
     private readonly sessionService: SessionService,
-    @Inject(USER_REPOSITORY) private readonly userRepository: IUserRepository,
+    private readonly emailOtpService: EmailOtpService,
     @Inject(SECURITY_AUDIT) private readonly securityAudit: ISecurityAuditPort,
   ) {}
 
@@ -55,25 +56,22 @@ export class LoginUseCase {
       throw error;
     }
 
-    if (requiresMfa(user)) {
-      return {
-        requiresMfa: true,
-        mfaToken: await this.sessionService.challenge(user),
-        mfaChallenge: { type: "TOTP", digits: 6 },
-        expiresIn: MFA_CHALLENGE_TTL_SECONDS,
-      };
-    }
-
-    await this.userRepository.registrarUltimoIngreso(
-      user.id_usuario,
-      new Date(),
-    );
+    const otp = await this.emailOtpService.issue(user);
     await this.securityAudit.registrarIncidente({
-      tipo_evento: "LOGIN",
+      tipo_evento: "LOGIN_OTP_SENT",
       id_usuario: user.id_usuario,
-      payload: { mfa: false },
+      payload: { canal: "EMAIL" },
     });
 
-    return { requiresMfa: false, ...(await this.sessionService.open(user, false)) };
+    return {
+      requiresMfa: true,
+      mfaToken: await this.sessionService.challenge(user, otp.challengeId),
+      mfaChallenge: {
+        type: "EMAIL_OTP",
+        digits: EMAIL_OTP_DIGITS as 6,
+        destination: maskEmail(user.email),
+      },
+      expiresIn: otp.expiresIn,
+    };
   }
 }

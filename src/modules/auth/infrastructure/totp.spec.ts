@@ -15,9 +15,12 @@ describe("TOTP (RFC 6238)", () => {
     [1111111109, "081804"],
     [1234567890, "005924"],
     [2000000000, "279037"],
-  ])("debe coincidir con el vector oficial del RFC en t=%i", (seconds, code) => {
-    expect(generateTotp(rfcSecret, seconds * 1000)).toBe(code);
-  });
+  ])(
+    "debe coincidir con el vector oficial del RFC en t=%i",
+    (seconds, code) => {
+      expect(generateTotp(rfcSecret, seconds * 1000)).toBe(code);
+    },
+  );
 
   it("debe coincidir con los vectores HOTP del RFC 4226", () => {
     expect(hotp(rfcSecret, 0)).toBe("755224");

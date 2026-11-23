@@ -46,7 +46,10 @@ describe("AuthService", () => {
 
   it("debe ignorar mayúsculas y espacios en el correo", async () => {
     await expect(
-      service.validateCredentials("  ACUDIENTE@correo.co ", "ContrasenaSegura#2026"),
+      service.validateCredentials(
+        "  ACUDIENTE@correo.co ",
+        "ContrasenaSegura#2026",
+      ),
     ).resolves.toBeDefined();
   });
 

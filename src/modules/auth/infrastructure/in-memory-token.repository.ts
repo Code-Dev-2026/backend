@@ -39,4 +39,12 @@ export class InMemoryTokenRepository implements ITokenRepository {
       }
     }
   }
+
+  async revokeAllForUser(idUsuario: string): Promise<void> {
+    for (const [hash, token] of this.tokens) {
+      if (token.id_usuario === idUsuario) {
+        this.tokens.delete(hash);
+      }
+    }
+  }
 }

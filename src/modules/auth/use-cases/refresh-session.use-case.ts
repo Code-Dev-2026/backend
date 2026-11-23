@@ -1,5 +1,4 @@
 import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
-import { requiresMfa } from "../domain/auth-policy";
 import { IUserRepository, USER_REPOSITORY } from "../domain/user.repository";
 import { RefreshTokenService } from "../refresh-token.service";
 import { ACCESS_TOKEN_TTL_SECONDS, SessionService } from "../session.service";
@@ -32,11 +31,8 @@ export class RefreshSessionUseCase {
       throw new UnauthorizedException("Sesión no válida.");
     }
 
-    // Un refresh token solo existe tras completar el login (y el MFA si aplica).
-    const accessToken = await this.sessionService.signAccess(
-      user,
-      requiresMfa(user),
-    );
+    // Un refresh token solo existe tras completar el login con OTP.
+    const accessToken = await this.sessionService.signAccess(user, true);
 
     return {
       accessToken,

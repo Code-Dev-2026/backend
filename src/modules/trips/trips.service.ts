@@ -1,5 +1,6 @@
-import { Injectable, BadRequestException } from "@nestjs/common";
+import { Injectable, BadRequestException, Optional } from "@nestjs/common";
 import { TripStateEnum } from "@common/enums/trip-state.enum";
+import { CustodyService } from "../custody/custody.service";
 
 export interface DispatchTripDto {
   id_ruta: string;
@@ -11,6 +12,11 @@ export interface DispatchTripDto {
 
 @Injectable()
 export class TripsService {
+  constructor(
+    @Optional()
+    private readonly custodyService?: CustodyService,
+  ) {}
+
   async dispatchTrip(dto: DispatchTripDto) {
     if (!dto.id_ruta || !dto.id_vehiculo) {
       throw new BadRequestException(
@@ -37,10 +43,18 @@ export class TripsService {
     };
   }
 
+  /**
+   * Finaliza el recorrido operativo (`FINALIZADO`), bloqueando el cierre
+   * si existen menores aún en estado `A_BORDO_VEHICULO` (Issue #7).
+   */
   async finishTrip(id_viaje: string) {
+    if (this.custodyService) {
+      await this.custodyService.assertTripCanFinalize(id_viaje);
+    }
+
     return {
       id_viaje,
-      estado: TripStateEnum.COMPLETADO,
+      estado: TripStateEnum.FINALIZADO,
       finalizado_en: new Date().toISOString(),
     };
   }

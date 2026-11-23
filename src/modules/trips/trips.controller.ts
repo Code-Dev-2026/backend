@@ -24,7 +24,16 @@ export class TripsController {
   }
 
   @Patch(":id/finish")
-  @ApiOperation({ summary: "Finalizar recorrido en ruta" })
+  @ApiOperation({
+    summary:
+      "Finalizar recorrido en ruta (FINALIZADO), bloqueando cierre si hay menores A_BORDO_VEHICULO (Issue #7)",
+  })
+  @ApiResponse({ status: 200, description: "Viaje finalizado correctamente." })
+  @ApiResponse({
+    status: 409,
+    description:
+      "Cierre bloqueado: existen estudiantes en estado A_BORDO_VEHICULO.",
+  })
   async finishTrip(@Param("id", ParseUUIDv7Pipe) id: string) {
     return this.tripsService.finishTrip(id);
   }

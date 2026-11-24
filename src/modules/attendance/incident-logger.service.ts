@@ -8,11 +8,18 @@ import {
   ATTENDANCE_REPOSITORY,
   IAttendanceRepository,
 } from "./domain/attendance-repository.port";
+import { FsmCustodyState } from "../custody/domain/custody.types";
 import {
   AttendanceCoordinates,
   BoardingResultCode,
+  IncidentSeverity,
   OvercapacityAlertEventPayload,
 } from "./domain/attendance.types";
+import {
+  DisembarkResultCode,
+  FailedDeliveryAlertEventPayload,
+  UnauthorizedReceptorAlertEventPayload,
+} from "./domain/disembark.types";
 
 export interface LogOvercapacityIncidentInput {
   id_incidente_existente?: string | null;
@@ -38,6 +45,32 @@ export interface LogDuplicateBoardingIncidentInput {
 export interface OvercapacityIncidentOutcome {
   id_incidente: string;
   alerta_coordinacion_emitida: boolean;
+}
+
+export interface LogFailedDeliveryIncidentInput {
+  id_incidente_existente?: string | null;
+  id_entrega: string;
+  id_viaje: string;
+  id_ruta: string;
+  id_estudiante: string;
+  estado_custodia: FsmCustodyState;
+  total_a_bordo: number;
+  capacidad_nominal: number;
+  observaciones: string;
+  coordenadas: AttendanceCoordinates;
+  registrado_por_usuario: string | null;
+  fecha_hora: Date;
+}
+
+export interface LogUnauthorizedReceptorIncidentInput {
+  id_viaje: string;
+  id_estudiante: string;
+  codigo: string;
+  severidad: IncidentSeverity;
+  tipo_receptor_intentado: string;
+  mensaje: string;
+  coordenadas: AttendanceCoordinates;
+  registrado_por_usuario: string | null;
 }
 
 /**
@@ -161,5 +194,132 @@ export class IncidentLogger {
     }
 
     return idIncidente;
+  }
+
+  async logFailedDeliveryIncident(
+    input: LogFailedDeliveryIncidentInput,
+  ): Promise<OvercapacityIncidentOutcome> {
+    let idIncidente = input.id_incidente_existente ?? null;
+
+    if (!idIncidente) {
+      const created = await this.repository.recordIncident({
+        id_viaje: input.id_viaje,
+        id_estudiante: input.id_estudiante,
+        tipo_incidente: "DESEMBARQUE_FALLIDO_RETORNO",
+        severidad: "CRITICO",
+        descripcion: input.observaciones,
+        coordenadas: input.coordenadas,
+        registrado_por_usuario: input.registrado_por_usuario,
+      });
+      idIncidente = created.id_incidente;
+    }
+
+    if (this.auditService) {
+      await this.auditService.logCriticalEvent({
+        tipo_evento: "DESEMBARQUE_FALLIDO_RETORNO_ACTIVADO",
+        id_usuario: input.registrado_por_usuario ?? undefined,
+        id_estudiante: input.id_estudiante,
+        id_viaje: input.id_viaje,
+        payload: {
+          id_incidente: idIncidente,
+          id_entrega: input.id_entrega,
+          estado_custodia: input.estado_custodia,
+          total_a_bordo: input.total_a_bordo,
+          capacidad_nominal: input.capacidad_nominal,
+          severidad: "CRITICO",
+        },
+      });
+    }
+
+    const alertPayload: FailedDeliveryAlertEventPayload = {
+      evento: "coordination:failed_delivery_alert",
+      codigo: DisembarkResultCode.DESEMBARQUE_FALLIDO_RETORNO,
+      severidad: "CRITICO",
+      id_incidente: idIncidente,
+      id_entrega: input.id_entrega,
+      id_viaje: input.id_viaje,
+      id_ruta: input.id_ruta,
+      id_estudiante: input.id_estudiante,
+      estado_custodia: input.estado_custodia,
+      total_a_bordo: input.total_a_bordo,
+      capacidad_nominal: input.capacidad_nominal,
+      observaciones: input.observaciones,
+      registrado_por_usuario: input.registrado_por_usuario,
+      coordenadas: input.coordenadas,
+      fecha_hora: input.fecha_hora.toISOString(),
+    };
+
+    let alertaEmitida = false;
+    if (this.realtimePort?.emitFailedDeliveryAlert) {
+      await this.realtimePort.emitFailedDeliveryAlert(alertPayload);
+      alertaEmitida = true;
+    }
+
+    this.logger.warn(
+      `[RF-11 RETORNO SEDE] Viaje=${input.id_viaje} Estudiante=${input.id_estudiante} Incidente=${idIncidente} Aforo=${input.total_a_bordo}/${input.capacidad_nominal}`,
+    );
+
+    return {
+      id_incidente: idIncidente,
+      alerta_coordinacion_emitida: alertaEmitida,
+    };
+  }
+
+  async logUnauthorizedReceptorIncident(
+    input: LogUnauthorizedReceptorIncidentInput,
+  ): Promise<OvercapacityIncidentOutcome> {
+    const tipoIncidente =
+      input.codigo === "ALERTA_JUDICIAL_ACTIVA"
+        ? "ALERTA_JUDICIAL_DETECTADA"
+        : "INTENTO_ENTREGA_NO_AUTORIZADO";
+
+    const created = await this.repository.recordIncident({
+      id_viaje: input.id_viaje,
+      id_estudiante: input.id_estudiante,
+      tipo_incidente: tipoIncidente,
+      severidad: input.severidad,
+      descripcion: input.mensaje,
+      coordenadas: input.coordenadas,
+      registrado_por_usuario: input.registrado_por_usuario,
+    });
+
+    if (this.auditService) {
+      await this.auditService.logCriticalEvent({
+        tipo_evento: tipoIncidente,
+        id_usuario: input.registrado_por_usuario ?? undefined,
+        id_estudiante: input.id_estudiante,
+        id_viaje: input.id_viaje,
+        payload: {
+          id_incidente: created.id_incidente,
+          codigo: input.codigo,
+          tipo_receptor_intentado: input.tipo_receptor_intentado,
+          severidad: input.severidad,
+        },
+      });
+    }
+
+    let alertaEmitida = false;
+    if (this.realtimePort?.emitUnauthorizedReceptorAlert) {
+      const payload: UnauthorizedReceptorAlertEventPayload = {
+        evento: "coordination:unauthorized_receptor_alert",
+        codigo: input.codigo,
+        severidad: input.severidad === "CRITICO" ? "CRITICO" : "ADVERTENCIA",
+        id_incidente: created.id_incidente,
+        id_viaje: input.id_viaje,
+        id_estudiante: input.id_estudiante,
+        tipo_receptor_intentado: input.tipo_receptor_intentado,
+        mensaje: input.mensaje,
+        registrado_por_usuario: input.registrado_por_usuario,
+        coordenadas: input.coordenadas,
+        fecha_hora: created.fecha_hora.toISOString(),
+      };
+      await this.realtimePort.emitUnauthorizedReceptorAlert(payload);
+      alertaEmitida = true;
+    }
+
+    return {
+      id_incidente: created.id_incidente,
+      alerta_coordinacion_emitida: alertaEmitida,
+    };
   }
 }

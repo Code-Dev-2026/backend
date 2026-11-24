@@ -407,16 +407,21 @@ export class InMemoryCustodyRepository implements ICustodyRepository {
   }
 
   async finalizeTrip(idViaje: string): Promise<TripCustodyMeta> {
-    const studentsOnBoard = await this.listStudentsByState(
-      idViaje,
-      FsmCustodyState.A_BORDO_VEHICULO,
-    );
+    const [studentsOnBoard, studentsInReturn] = await Promise.all([
+      this.listStudentsByState(idViaje, FsmCustodyState.A_BORDO_VEHICULO),
+      this.listStudentsByState(
+        idViaje,
+        FsmCustodyState.RETORNO_SEDE_POR_FALLA_ENTREGA,
+      ),
+    ]);
 
-    if (studentsOnBoard.length > 0) {
+    const blockingStudents = [...studentsOnBoard, ...studentsInReturn];
+
+    if (blockingStudents.length > 0) {
       throw new TripClosureBlockedError(
         idViaje,
-        studentsOnBoard.length,
-        studentsOnBoard.map((s) => s.id_estudiante),
+        blockingStudents.length,
+        blockingStudents.map((s) => s.id_estudiante),
       );
     }
 

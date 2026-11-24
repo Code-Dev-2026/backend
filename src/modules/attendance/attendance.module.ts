@@ -8,6 +8,8 @@ import { AttendanceController } from "./attendance.controller";
 import { AttendanceService } from "./attendance.service";
 import { BoardingNotificationQueueService } from "./boarding-notification-queue.service";
 import { CapacityEnforcer } from "./capacity-enforcer.service";
+import { DeliveryValidationService } from "./delivery-validation.service";
+import { DisembarkUseCase } from "./disembark.use-case";
 import { ATTENDANCE_REALTIME_PORT } from "./domain/attendance-realtime.port";
 import { ATTENDANCE_REPOSITORY } from "./domain/attendance-repository.port";
 import { IncidentLogger } from "./incident-logger.service";
@@ -54,10 +56,14 @@ import { QrTokenValidator } from "./qr-token-validator.service";
     },
     IncidentLogger,
     BoardingNotificationQueueService,
+    DeliveryValidationService,
+    DisembarkUseCase,
     AttendanceService,
   ],
   exports: [
     AttendanceService,
+    DeliveryValidationService,
+    DisembarkUseCase,
     CapacityEnforcer,
     IncidentLogger,
     QrTokenValidator,

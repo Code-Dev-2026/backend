@@ -12,6 +12,12 @@ import {
   OvercapacityAlertEventPayload,
   StudentBoardedEventPayload,
 } from "../domain/attendance.types";
+import {
+  FailedDeliveryAlertEventPayload,
+  SchoolCustodyFinalizedEventPayload,
+  StudentDisembarkedEventPayload,
+  UnauthorizedReceptorAlertEventPayload,
+} from "../domain/disembark.types";
 
 export const COORDINATION_ALERT_ROOM = "coordinacion";
 
@@ -88,6 +94,71 @@ export class AttendanceRealtimeGateway implements IAttendanceRealtimePort {
       .emit("coordination:overcapacity_alert", payload);
     this.logger.warn(
       `[Socket.IO] Emitida alerta de sobrecupo a '${COORDINATION_ALERT_ROOM}' viaje=${payload.id_viaje} incidente=${payload.id_incidente}`,
+    );
+  }
+
+  async emitStudentDisembarked(
+    payload: StudentDisembarkedEventPayload,
+  ): Promise<void> {
+    if (!this.server) {
+      this.logger.debug(
+        `[Socket.IO pendiente] student:disembarked viaje=${payload.id_viaje} estudiante=${payload.id_estudiante}`,
+      );
+      return;
+    }
+
+    this.server.emit("student:disembarked", payload);
+    this.logger.log(
+      `[Socket.IO] Emitido student:disembarked viaje=${payload.id_viaje} aforo=${payload.total_a_bordo}/${payload.capacidad_nominal}`,
+    );
+  }
+
+  async emitFailedDeliveryAlert(
+    payload: FailedDeliveryAlertEventPayload,
+  ): Promise<void> {
+    if (!this.server) {
+      this.logger.warn(
+        `[Socket.IO pendiente] coordination:failed_delivery_alert viaje=${payload.id_viaje} incidente=${payload.id_incidente}`,
+      );
+      return;
+    }
+
+    this.server
+      .to(COORDINATION_ALERT_ROOM)
+      .emit("coordination:failed_delivery_alert", payload);
+    this.logger.warn(
+      `[Socket.IO] Emitida alerta de retorno seguro a '${COORDINATION_ALERT_ROOM}' viaje=${payload.id_viaje} estudiante=${payload.id_estudiante}`,
+    );
+  }
+
+  async emitUnauthorizedReceptorAlert(
+    payload: UnauthorizedReceptorAlertEventPayload,
+  ): Promise<void> {
+    if (!this.server) {
+      this.logger.warn(
+        `[Socket.IO pendiente] coordination:unauthorized_receptor_alert viaje=${payload.id_viaje} codigo=${payload.codigo}`,
+      );
+      return;
+    }
+
+    this.server
+      .to(COORDINATION_ALERT_ROOM)
+      .emit("coordination:unauthorized_receptor_alert", payload);
+  }
+
+  async emitSchoolCustodyFinalized(
+    payload: SchoolCustodyFinalizedEventPayload,
+  ): Promise<void> {
+    if (!this.server) {
+      this.logger.debug(
+        `[Socket.IO pendiente] custody:school_return_completed viaje=${payload.id_viaje} acta=${payload.id_acta}`,
+      );
+      return;
+    }
+
+    this.server.emit("custody:school_return_completed", payload);
+    this.logger.log(
+      `[Socket.IO] Emitido custody:school_return_completed viaje=${payload.id_viaje} acta=${payload.id_acta}`,
     );
   }
 }

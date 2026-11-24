@@ -263,20 +263,28 @@ export class CustodyService implements ICustodyFsmPort {
   }
 
   /**
-   * Mitigación de riesgo (Issue #7): bloquea el cierre del viaje (`FINALIZADO`)
-   * si aún existen menores en estado `A_BORDO_VEHICULO`.
+   * Mitigación de riesgo (Issues #7 y #9): bloquea el cierre del viaje (`FINALIZADO`)
+   * si aún existen menores en estado `A_BORDO_VEHICULO` o `RETORNO_SEDE_POR_FALLA_ENTREGA`.
    */
   async assertTripCanFinalize(idViaje: string): Promise<void> {
-    const studentsOnBoard = await this.repository.listStudentsByState(
-      idViaje,
-      FsmCustodyState.A_BORDO_VEHICULO,
-    );
+    const [studentsOnBoard, studentsInReturn] = await Promise.all([
+      this.repository.listStudentsByState(
+        idViaje,
+        FsmCustodyState.A_BORDO_VEHICULO,
+      ),
+      this.repository.listStudentsByState(
+        idViaje,
+        FsmCustodyState.RETORNO_SEDE_POR_FALLA_ENTREGA,
+      ),
+    ]);
 
-    if (studentsOnBoard.length > 0) {
+    const blockingStudents = [...studentsOnBoard, ...studentsInReturn];
+
+    if (blockingStudents.length > 0) {
       const err = new TripClosureBlockedError(
         idViaje,
-        studentsOnBoard.length,
-        studentsOnBoard.map((s) => s.id_estudiante),
+        blockingStudents.length,
+        blockingStudents.map((s) => s.id_estudiante),
       );
       throw new ConflictException({
         code: err.code,

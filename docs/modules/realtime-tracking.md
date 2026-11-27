@@ -47,6 +47,7 @@ El middleware del namespace valida el JWT **antes** de crear el socket. El Acces
 | Servidor → cliente | `trip:gps` | `{ id_viaje, id_vehiculo, placa, latitud, longitud, velocidad_kmh, rumbo_grados, fecha_hora }` (sin metadatos internos de ingesta) |
 | Servidor → cliente | `trip:stream_status` | `{ id_viaje, suscrito, transmitiendo, motivo, estudiantes, fecha_hora }`: al re-suscribir por handshake y cada vez que cambia `transmitiendo` |
 | Servidor → cliente | `auth:expired` | `{ motivo: "TOKEN_EXPIRADO", mensaje }` y cierre del socket |
+| Servidor → cliente | `notification:new` | Notificación de la sala familiar `familia:{id_acudiente}` con confirmación por ack (Issue `#15`, ver [notifications-realtime.md](notifications-realtime.md)) |
 
 `motivo`: `PERSONAL_AUTORIZADO`, `ESTUDIANTE_A_BORDO`, `SIN_ESTUDIANTE_A_BORDO`, `SIN_VINCULO_CON_VIAJE`, `ID_VIAJE_INVALIDO`, `LIMITE_SUSCRIPCIONES`. `estudiantes` contiene **solo los hijos del propio acudiente** (`id_estudiante`, `estado_custodia`); para personal va vacío.
 
@@ -56,6 +57,7 @@ El middleware del namespace valida el JWT **antes** de crear el socket. El Acces
 - Un acudiente **sin hijos inscritos** en el viaje recibe `SIN_VINCULO_CON_VIAJE` y no entra a la sala.
 - Un acudiente con hijo inscrito pero aún no a bordo entra a la sala con `transmitiendo: false`; empieza a recibir frames cuando el hijo aborda.
 - Máximo **5 salas** por socket.
+- **Sala familiar (Issue `#15`):** al conectarse, cada acudiente entra solo a `familia:{id_acudiente}` de sus propios registros de `acudiente` (cuenta `ACTIVO`), donde recibe `notification:new`.
 
 ---
 

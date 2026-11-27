@@ -39,6 +39,21 @@ export class PostgresGuardianLinkRepository
     }
   }
 
+  async listGuardianIdsForUser(idUsuario: string): Promise<string[]> {
+    if (!UUID_PATTERN.test(idUsuario)) {
+      return [];
+    }
+    const res = await this.pool.query<{ id_acudiente: string }>(
+      `SELECT a.id_acudiente
+         FROM public.acudiente a
+         JOIN public.usuario u ON u.id_usuario = a.id_usuario
+        WHERE a.id_usuario = $1::uuid
+          AND u.estado = 'ACTIVO'`,
+      [idUsuario],
+    );
+    return res.rows.map((r) => r.id_acudiente);
+  }
+
   async listGuardianLinksForStudents(
     idEstudiantes: readonly string[],
   ): Promise<GuardianStudentLink[]> {

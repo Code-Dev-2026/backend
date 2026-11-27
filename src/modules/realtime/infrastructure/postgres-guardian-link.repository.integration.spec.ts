@@ -174,6 +174,16 @@ describeIfPostgres(
       ).toBe(idEstudiante2);
     });
 
+    it("resuelve el id_acudiente de la sala familiar solo para cuentas ACTIVO (Issue #15)", async () => {
+      await expect(
+        repository.listGuardianIdsForUser(userIds.activo),
+      ).resolves.toEqual([acudienteIds.activo]);
+      await expect(
+        repository.listGuardianIdsForUser(userIds.inactivo),
+      ).resolves.toEqual([]);
+      await expect(repository.listGuardianIdsForUser("x")).resolves.toEqual([]);
+    });
+
     it("ignora identificadores no UUID y listas vacías sin consultar la BD", async () => {
       await expect(
         repository.listGuardianLinksForStudents([]),

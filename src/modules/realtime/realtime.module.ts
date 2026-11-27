@@ -3,7 +3,9 @@ import { ConfigService } from "@nestjs/config";
 import { AuthModule } from "../auth/auth.module";
 import { CustodyModule } from "../custody/custody.module";
 import { CustodyService } from "../custody/custody.service";
+import { NotificationsModule } from "../notifications/notifications.module";
 import { TelemetryModule } from "../telemetry/telemetry.module";
+import { FamilyRoomNotificationChannel } from "./infrastructure/family-room-notification.channel";
 import {
   GUARDIAN_LINK_REPOSITORY,
   REALTIME_CLOCK,
@@ -21,7 +23,7 @@ import { WsHandshakeAuthenticator } from "./ws-handshake.authenticator";
  * Depende de JWT (#3), custodia FSM (#7) y eventos telemáticos (#12).
  */
 @Module({
-  imports: [AuthModule, CustodyModule, TelemetryModule],
+  imports: [AuthModule, CustodyModule, TelemetryModule, NotificationsModule],
   providers: [
     { provide: REALTIME_CLOCK, useValue: () => Date.now() },
     {
@@ -45,6 +47,7 @@ import { WsHandshakeAuthenticator } from "./ws-handshake.authenticator";
     TripSubscriptionManager,
     WsHandshakeAuthenticator,
     TelemetryGateway,
+    FamilyRoomNotificationChannel,
   ],
   exports: [TelemetryGateway, StreamingAuthorizationFilter],
 })

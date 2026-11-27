@@ -18,6 +18,7 @@ import { PassengersModule } from "./modules/passengers/passengers.module";
 import { TelemetryModule } from "./modules/telemetry/telemetry.module";
 import { GeoMonitoringModule } from "./modules/geo-monitoring/geo-monitoring.module";
 import { TrackingModule } from "./modules/tracking/tracking.module";
+import { RealtimeModule } from "./modules/realtime/realtime.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { OfflineModule } from "./modules/offline/offline.module";
 import { AuditModule } from "./modules/audit/audit.module";
@@ -48,6 +49,7 @@ import { BillingIsolationModule } from "./modules/billing-isolation/billing-isol
     TelemetryModule,
     GeoMonitoringModule,
     TrackingModule,
+    RealtimeModule,
     NotificationsModule,
     // Sprint 4
     OfflineModule,

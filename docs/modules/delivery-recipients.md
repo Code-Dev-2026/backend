@@ -55,10 +55,11 @@ Garantizar que cada menor sea entregado exclusivamente a su **acudiente titular*
 #### Códigos de error HTTP en `/asistencia/descenso`
 
 - `400`: DTO inválido, falta `tipo_receptor` en entrega exitosa o coordenadas WGS84 inválidas.
-- `401` / `403`: sin JWT, rol no autorizado, **alerta judicial activa** (`ALERTA_JUDICIAL_ACTIVA` + incidente `CRITICO` + alerta WS), receptor no acreditado, inactivo/revocado o autorización vencida (`INCIDENTE` + alerta WS `coordination:unauthorized_receptor_alert`).
+- `401` / `403`: sin JWT, rol no autorizado, **alerta judicial bloqueante** (`ALERTA_JUDICIAL_BLOQUEANTE` + incidente `CRITICO` + SMS `ALERTA_JUDICIAL_ACTIVADA` a acudientes no restringidos + alerta a Coordinación y Policía de Infancia y Adolescencia; ver [judicial-alerts.md](judicial-alerts.md)), receptor no acreditado, inactivo/revocado o autorización vencida (`INCIDENTE` + alerta WS `coordination:unauthorized_receptor_alert`).
 - `404`: viaje o estudiante no encontrado.
 - `409`: viaje no `EN_CURSO` o descenso previo ya registrado (`DuplicateDisembarkError`).
 - `422`: estudiante no `A_BORDO_VEHICULO`, recorrido incompatible (`SEDE_EDUCATIVA` en `TARDE` o `ACUDIENTE`/`ADULTO_AUTORIZADO` en `MANANA`), o anomalía `RN-04` (`> 3` autorizados activos).
+- `503`: fallo técnico del motor preventivo de alertas judiciales (`MOTOR_JUDICIAL_NO_DISPONIBLE_BLOQUEO_SEGURO`, bloqueo fail-safe manteniendo al menor a bordo).
 
 ### `POST /api/v1/asistencia/custodia/finalizar-sede` (`200 OK`)
 
@@ -75,7 +76,7 @@ Cierra formalmente la custodia de un estudiante en estado `RETORNO_SEDE_POR_FALL
 ### Eventos Socket.IO (namespace `/asistencia`)
 
 - `student:disembarked` (entrega exitosa) y `custody:school_return_completed` (acta en sede): emitidos al namespace `/asistencia`.
-- `coordination:failed_delivery_alert` y `coordination:unauthorized_receptor_alert`: emitidos a la sala `coordinacion`.
+- `coordination:failed_delivery_alert`, `coordination:unauthorized_receptor_alert` y `coordination:judicial_alert`: emitidos a la sala `coordinacion`.
 
 ---
 
@@ -91,7 +92,7 @@ Cierra formalmente la custodia de un estudiante en estado `RETORNO_SEDE_POR_FALL
 ## 5. Decisiones de Seguridad
 
 - **Cotejo exclusivo por Blind Index (`OWASP ASVS V4.1`):** `DeliveryValidationService.resolveBlindIndex()` normaliza el documento y calcula HMAC-SHA256 con `CryptoVaultService`/`BlindIndexService`. Si el cliente envía simultáneamente `documento_receptor` y `documento_blind_index`, ambos deben coincidir exactamente o la entrega se rechaza.
-- **Prioridad absoluta de alertas judiciales (`RF-07`):** antes de comprobar si el individuo figura como acudiente o autorizado, se contrasta su `blindIndex` contra `alerta_judicial` (`activa = TRUE` y `eliminado_soft = FALSE`); cualquier coincidencia bloquea con `403 Forbidden`, registra incidente `CRITICO` y audita `ALERTA_JUDICIAL_DETECTADA`.
+- **Prioridad absoluta de alertas judiciales (`RF-02`, `RF-09`, `RNF-01`):** antes de comprobar si el individuo figura como acudiente o autorizado, la cadena OCP `DeliveryInterceptorChain` (`JudicialAlertDeliveryInterceptor`) y `fn_registrar_descenso_atomico` (`V017`) contrastan su blind index contra `alerta_judicial.documento_restringido_hash` (`activa = TRUE` y `eliminado_soft = FALSE`); cualquier coincidencia bloquea con `403 Forbidden` (`ALERTA_JUDICIAL_BLOQUEANTE`), registra incidente `CRITICO`, despacha SMS `ALERTA_JUDICIAL_ACTIVADA` a acudientes no restringidos y alerta a Coordinación y Policía de Infancia y Adolescencia (ver [judicial-alerts.md](judicial-alerts.md)).
 - **Separación de funciones:** la monitora registra el retorno fallido, pero solo directivas/operaciones (`COORDINADORA_CONVIVENCIA`, `RECTORIA`, `ADMIN`, `JEFE_OPERACIONES`) pueden firmar el cierre en sede y liberar el cupo.
 - **No repudio del acta:** `firma_digital_hash = SHA-256(id_entrega | id_estudiante | recibido_por_coordinador | fecha_utc_iso | observaciones)`.
 

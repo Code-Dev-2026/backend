@@ -24,6 +24,9 @@ export const envValidationSchema = Joi.object({
   PASSENGERS_USE_POSTGRES: Joi.string()
     .valid("true", "false")
     .default("false"),
+  REALTIME_USE_POSTGRES: Joi.string()
+    .valid("true", "false")
+    .default("false"),
   QR_DYNAMIC_HMAC_SECRET: Joi.string().default(
     "dev_qr_dynamic_hmac_secret_camino_seguro_2026",
   ),

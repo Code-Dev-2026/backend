@@ -1,8 +1,8 @@
-# Matriz de Trazabilidad — Issues #1 a #10
+# Matriz de Trazabilidad — Issues #1 a #11
 
 Trazabilidad entre los issues implementados (Sprints 0, 1 y 2), los módulos del backend y su documentación técnica.
 
-> **Fuera de alcance:** los issues `#11` y `#12` (y posteriores) no forman parte de esta entrega documental.
+> **Fuera de alcance:** el issue `#12` (y posteriores) no forma parte de esta entrega documental.
 
 ## Tabla Issue → Módulo → Documento
 
@@ -18,6 +18,7 @@ Trazabilidad entre los issues implementados (Sprints 0, 1 y 2), los módulos del
 | `#8` | Sprint 2 | Abordaje QR atómico y prevención de sobrecupo | `src/modules/attendance/`, `db/migrations/V015` | [qr-boarding.md](modules/qr-boarding.md) | Documentado |
 | `#9` | Sprint 2 | Receptores de entrega, desembarque y retorno seguro | `src/modules/attendance/`, `db/migrations/V016` | [delivery-recipients.md](modules/delivery-recipients.md) | Documentado |
 | `#10` | Sprint 2 | Motor de protección preventiva contra alertas judiciales activas | `src/modules/custody/judicial-alerts/`, `src/modules/attendance/`, `src/modules/notifications/`, `db/migrations/V017` | [judicial-alerts.md](modules/judicial-alerts.md) | Documentado |
+| `#11` | Sprint 2 | Gestión transaccional de pasajeros ocasionales y reasignación de cupos | `src/modules/passengers/`, `src/config/env.validation.ts`, `db/migrations/V018` | [occasional-passengers.md](modules/occasional-passengers.md) | Documentado |
 
 ---
 

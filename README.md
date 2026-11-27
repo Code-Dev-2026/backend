@@ -4,7 +4,7 @@ Backend del sistema **Camino Seguro**, plataforma de control de custodia física
 
 Construido con **NestJS 10**, **TypeScript (modo estricto)** y **PostgreSQL 16 + PostGIS 3.4**, bajo **Arquitectura Hexagonal (Ports & Adapters)**, **Clean Architecture**, controles **OWASP ASVS L2** y cumplimiento de la **Ley Estatutaria 1581 de 2012** (Habeas Data).
 
-> Alcance actual de esta documentación: **Issues #1 a #10** (Sprints 0, 1 y 2). Los issues #11 en adelante se encuentran fuera del alcance de esta guía y se documentarán conforme se integren.
+> Alcance actual de esta documentación: **Issues #1 a #11** (Sprints 0, 1 y 2). Los issues #12 en adelante se encuentran fuera del alcance de esta guía y se documentarán conforme se integren.
 
 ---
 
@@ -63,6 +63,7 @@ La validación al arranque se ejecuta con Joi en `src/config/env.validation.ts`.
 | `GEO_USE_POSTGIS` | No *(pendiente en `.env.example`)* | `false` | Activa el repositorio PostGIS en `RoutesModule` (`true`/`false`) |
 | `CUSTODY_USE_POSTGRES` | Sí | `false` | Activa el repositorio PostgreSQL en `CustodyModule` (`true`/`false`) |
 | `ATTENDANCE_USE_POSTGRES` | No *(pendiente en `.env.example`)* | `false` | Activa el repositorio PostgreSQL en `AttendanceModule` (`true`/`false`) |
+| `PASSENGERS_USE_POSTGRES` | No *(pendiente en `.env.example`)* | `false` | Activa el repositorio PostgreSQL en `PassengersModule` (`true`/`false`) |
 | `QR_DYNAMIC_HMAC_SECRET` | No *(pendiente en `.env.example`)* | *(valor de desarrollo)* | Secreto HMAC para tokens QR dinámicos |
 | `QR_DYNAMIC_TTL_SECONDS` | No *(pendiente en `.env.example`)* | `300` | Vigencia del QR dinámico en segundos (`30` a `86400`) |
 | `CUSTODY_MORNING_JOB_ENABLED` | Sí | `false` | Habilita el job matutino de inicialización de custodia |
@@ -128,7 +129,7 @@ npm test
 npm run test:cov
 ```
 
-- `npm test` ejecuta Jest sobre `src/**/*.spec.ts`. *(Comprobado: 56 suites aprobadas, 5 suites de integración PostgreSQL/PostGIS omitidas cuando no hay BD configurada, 409 pruebas aprobadas y 12 omitidas; código de salida `0`.)*
+- `npm test` ejecuta Jest sobre `src/**/*.spec.ts`. *(Comprobado: 58 suites aprobadas, 6 suites de integración PostgreSQL/PostGIS omitidas cuando no hay BD configurada, 427 pruebas aprobadas y 15 omitidas; código de salida `0`.)*
 - `npm run test:cov` genera el reporte en `coverage/`. *(Comprobado: cobertura global actual de 79.36% sentencias / 78.71% líneas con las 4 suites de integración PostgreSQL omitidas.)*
 
 ### Pruebas E2E (`test:e2e`)
@@ -164,7 +165,7 @@ npm run start:dev
 | Script | Comando subyacente | Estado verificado |
 | --- | --- | --- |
 | `npm run build` | `nest build` | Comprobado (OK) |
-| `npm test` | `jest` | Comprobado (OK: 56 suites, 409 tests; 5 suites de integración BD omitidas) |
+| `npm test` | `jest` | Comprobado (OK: 58 suites, 427 tests; 6 suites de integración BD omitidas) |
 | `npm run test:cov` | `jest --coverage` | Comprobado (OK: 79.36% stmts / 78.71% lines) |
 | `npm run test:e2e` | `jest --config ./test/jest-e2e.json` | Falla actualmente en `test/auth.e2e-spec.ts` |
 | `npm run lint` | `eslint "{src,apps,libs,test}/**/*.ts" --fix` | Falla actualmente (falta archivo de configuración ESLint) |
@@ -186,8 +187,8 @@ npm run start:dev
 │   ├── docker-compose.yml                # Servicio PostgreSQL 16 + PostGIS 3.4
 │   ├── migrations/
 │   │   ├── V001__...sql .. V010__...sql  # DDL fundacional (Issue #2)
-│   │   ├── V011__...sql .. V017__...sql  # Migraciones incrementales (Sprints 1 y 2)
-│   │   └── undo/                         # Scripts reversibles U013 a U017
+│   │   ├── V011__...sql .. V018__...sql  # Migraciones incrementales (Sprints 1 y 2)
+│   │   └── undo/                         # Scripts reversibles U013 a U018
 │   └── scripts/
 │       ├── verify-migrations.ps1         # Verificador de migraciones (Windows PowerShell)
 │       ├── verify-migrations.sh          # Verificador de migraciones (Linux/CI)
@@ -225,7 +226,7 @@ npm run start:dev
 │       ├── schools/                      # Soporte institucional
 │       ├── transport-companies/          # Soporte de empresas transportadoras
 │       ├── trips/                        # Gestión base de viajes
-│       ├── passengers/                   # Base Sprint 3 (fuera de alcance)
+│       ├── passengers/                   # Issue #11: Pasajeros ocasionales y reasignación transaccional de cupos
 │       ├── telemetry/                    # Base Sprint 3 (fuera de alcance)
 │       ├── tracking/                     # Base Sprint 3 (fuera de alcance)
 │       ├── notifications/                # Base Sprint 3 (usado por eventos de custodia/asistencia)
@@ -254,6 +255,7 @@ npm run start:dev
   - [Abordaje QR atómico y control de sobrecupo](docs/modules/qr-boarding.md)
   - [Receptores de entrega, desembarque y retorno seguro](docs/modules/delivery-recipients.md)
   - [Motor de protección preventiva contra alertas judiciales](docs/modules/judicial-alerts.md)
+  - [Pasajeros ocasionales y reasignación de cupos](docs/modules/occasional-passengers.md)
 - **Gobernanza y flujo de trabajo:**
   - Política de seguridad: [SECURITY.md](SECURITY.md)
   - Guía de contribución: [CONTRIBUTING.md](CONTRIBUTING.md)

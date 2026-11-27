@@ -246,6 +246,9 @@ npm run start:dev
   - [ADR-002: Inmutabilidad Criptográfica WORM y Bóveda de Datos Sensibles](docs/adr/ADR-002-inmutabilidad-criptografica-worm.md)
 - **Documentación por módulo (`docs/modules/`):**
   - [Base de datos PostgreSQL 16 + PostGIS y migraciones](docs/modules/database-migrations.md)
+  - [Autenticación JWT con rotación, RBAC y MFA](docs/modules/auth.md)
+  - [Criptovault AES-256-GCM, Blind Indexing y Expedientes](docs/modules/crypto-vault.md)
+  - [Importación masiva de matrículas](docs/modules/enrollment-import.md)
 - **Gobernanza y flujo de trabajo:**
   - Política de seguridad: [SECURITY.md](SECURITY.md)
   - Guía de contribución: [CONTRIBUTING.md](CONTRIBUTING.md)

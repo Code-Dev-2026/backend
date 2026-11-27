@@ -1,8 +1,8 @@
-# Matriz de Trazabilidad — Issues #1 a #14
+# Matriz de Trazabilidad — Issues #1 a #15
 
-Trazabilidad entre los issues implementados (Sprints 0, 1, 2 e issues #12–#14 del Sprint 3), los módulos del backend y su documentación técnica.
+Trazabilidad entre los issues implementados (Sprints 0, 1, 2 e issues #12–#15 del Sprint 3), los módulos del backend y su documentación técnica.
 
-> **Fuera de alcance:** el issue `#15` (y posteriores) no forma parte de esta entrega documental.
+> **Fuera de alcance:** el issue `#16` (y posteriores) no forma parte de esta entrega documental.
 
 ## Tabla Issue → Módulo → Documento
 
@@ -22,6 +22,7 @@ Trazabilidad entre los issues implementados (Sprints 0, 1, 2 e issues #12–#14 
 | `#12` | Sprint 3 | Ingesta de telemetría IoT vehicular vía broker MQTT y almacenamiento particionado | `src/modules/telemetry/`, `src/config/env.validation.ts`, `docker/mosquitto/`, `db/docker-compose.yml`, `db/migrations/V019` | [telemetry.md](modules/telemetry.md), [README.md](../README.md) | Documentado |
 | `#13` | Sprint 3 | Motor de detección de desvíos de ruta (> 300 m) y paradas prolongadas en streaming | `src/modules/geo-monitoring/`, `src/app.module.ts` | [geo-monitoring.md](modules/geo-monitoring.md), [README.md](../README.md) | Documentado |
 | `#14` | Sprint 3 | Pasarela WebSocket Socket.IO con salas segmentadas y aislamiento familiar | `src/modules/realtime/`, `src/config/env.validation.ts`, `.env.example`, `src/app.module.ts` | [realtime-tracking.md](modules/realtime-tracking.md), [README.md](../README.md) | Documentado |
+| `#15` | Sprint 3 | Despachador de notificaciones y eventos en tiempo real con WebSocket / Socket.IO | `src/modules/notifications/`, `src/modules/realtime/` (sala familiar), `src/modules/attendance/boarding-notification-queue.service.ts`, `src/modules/custody/custody.controller.ts`, `src/config/env.validation.ts`, `.env.example` | [notifications-realtime.md](modules/notifications-realtime.md), [README.md](../README.md) | Documentado |
 
 ---
 

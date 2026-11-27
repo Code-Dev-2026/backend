@@ -4,7 +4,7 @@ Backend del sistema **Camino Seguro**, plataforma de control de custodia física
 
 Construido con **NestJS 10**, **TypeScript (modo estricto)** y **PostgreSQL 16 + PostGIS 3.4**, bajo **Arquitectura Hexagonal (Ports & Adapters)**, **Clean Architecture**, controles **OWASP ASVS L2** y cumplimiento de la **Ley Estatutaria 1581 de 2012** (Habeas Data).
 
-> Alcance actual de esta documentación: **Issues #1 a #14** (Sprints 0, 1, 2 e issues #12–#14 del Sprint 3). Los issues #15 en adelante se encuentran fuera del alcance de esta guía y se documentarán conforme se integren.
+> Alcance actual de esta documentación: **Issues #1 a #15** (Sprints 0, 1, 2 e issues #12–#15 del Sprint 3). Los issues #16 en adelante se encuentran fuera del alcance de esta guía y se documentarán conforme se integren.
 
 ---
 
@@ -95,6 +95,7 @@ La validación al arranque se ejecuta con Joi en `src/config/env.validation.ts`.
 | `MQTT_RECONNECT_PERIOD_MS` | Sí | `5000` | Intervalo de reconexión automática del cliente MQTT en ms (`>= 250`) |
 | `TELEMETRY_USE_POSTGRES` | Sí | `false` | Activa `PostgresTelemetryRepository` sobre `registro_gps` (`true`/`false`) |
 | `REALTIME_USE_POSTGRES` | Sí | `false` | Activa `PostgresGuardianLinkRepository` (parentesco `acudiente` ⋈ `estudiante_acudiente`) en `RealtimeModule` (`true`/`false`) |
+| `NOTIFICATIONS_USE_POSTGRES` | Sí | `false` | Activa `PostgresNotificationRepository` (`notificacion` ⋈ `tipo_notificacion`) y el directorio de acudientes en `NotificationsModule` (`true`/`false`) |
 | `TELEMETRY_BATCH_SIZE` | Sí | `100` | Tamaño máximo de lote para inserción batch en `registro_gps` (`1`–`5000`) |
 | `TELEMETRY_BATCH_FLUSH_MS` | Sí | `100` | Ventana máxima de vaciado del buffer de telemetría en ms (`10`–`10000`) |
 | `TELEMETRY_MAX_ACCURACY_METERS` | Sí | `30` | Umbral máximo de precisión GPS aceptado en metros (lecturas mayores se descartan) |
@@ -251,7 +252,7 @@ npm run start:dev
 │       ├── geo-monitoring/               # Issue #13: Motor de desvíos (> 300 m) y paradas prolongadas en streaming
 │       ├── realtime/                     # Issue #14: Pasarela WebSocket /telemetria con salas por viaje y aislamiento familiar
 │       ├── tracking/                     # Base Sprint 3 (fuera de alcance)
-│       ├── notifications/                # Base Sprint 3 (usado por eventos de custodia/asistencia)
+│       ├── notifications/                # Issue #15: Despachador en tiempo real (cola, persistencia en notificacion, reintentos y ack)
 │       ├── offline/                      # Base Sprint 4 (fuera de alcance)
 │       ├── audit/                        # Bitácora forense en memoria / puerto IAuditLedgerPort
 │       └── billing-isolation/            # Base Sprint 4 (fuera de alcance)
@@ -281,6 +282,7 @@ npm run start:dev
   - [Telemetría IoT vehicular vía MQTT y almacenamiento particionado](docs/modules/telemetry.md)
   - [Motor de desvíos de ruta y paradas prolongadas en streaming](docs/modules/geo-monitoring.md)
   - [Pasarela WebSocket de seguimiento en vivo y aislamiento familiar](docs/modules/realtime-tracking.md)
+  - [Despachador de notificaciones y eventos en tiempo real](docs/modules/notifications-realtime.md)
 - **Gobernanza y flujo de trabajo:**
   - Política de seguridad: [SECURITY.md](SECURITY.md)
   - Guía de contribución: [CONTRIBUTING.md](CONTRIBUTING.md)

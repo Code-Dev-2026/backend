@@ -18,6 +18,7 @@ import {
 import {
   DisembarkResultCode,
   FailedDeliveryAlertEventPayload,
+  JudicialAlertEventPayload,
   UnauthorizedReceptorAlertEventPayload,
 } from "./domain/disembark.types";
 
@@ -71,6 +72,23 @@ export interface LogUnauthorizedReceptorIncidentInput {
   mensaje: string;
   coordenadas: AttendanceCoordinates;
   registrado_por_usuario: string | null;
+}
+
+export interface LogJudicialAlertIncidentInput {
+  id_incidente_existente?: string | null;
+  id_alerta: string | null;
+  id_viaje: string;
+  id_ruta: string | null;
+  id_estudiante: string;
+  radicado_medida: string | null;
+  juzgado_emisor: string | null;
+  tipo_receptor_intentado: string;
+  mensaje: string;
+  coordenadas: AttendanceCoordinates;
+  registrado_por_usuario: string | null;
+  notificaciones_sms_emergencia: number;
+  alerta_policia_infancia_enviada: boolean;
+  fecha_hora: Date;
 }
 
 /**
@@ -269,6 +287,7 @@ export class IncidentLogger {
     input: LogUnauthorizedReceptorIncidentInput,
   ): Promise<OvercapacityIncidentOutcome> {
     const tipoIncidente =
+      input.codigo === "ALERTA_JUDICIAL_BLOQUEANTE" ||
       input.codigo === "ALERTA_JUDICIAL_ACTIVA"
         ? "ALERTA_JUDICIAL_DETECTADA"
         : "INTENTO_ENTREGA_NO_AUTORIZADO";
@@ -319,6 +338,107 @@ export class IncidentLogger {
 
     return {
       id_incidente: created.id_incidente,
+      alerta_coordinacion_emitida: alertaEmitida,
+    };
+  }
+
+  /**
+   * Genera automáticamente el acta de incidente `CRITICO` en `incidente` ante
+   * coincidencia de alerta judicial activa, registra auditoría forense y emite
+   * alertas inmediatas a Coordinación (Issue #10).
+   */
+  async logJudicialAlertIncident(
+    input: LogJudicialAlertIncidentInput,
+  ): Promise<OvercapacityIncidentOutcome> {
+    let idIncidente = input.id_incidente_existente ?? null;
+    let fechaHora = input.fecha_hora;
+
+    if (!idIncidente) {
+      const created = await this.repository.recordIncident({
+        id_viaje: input.id_viaje,
+        id_estudiante: input.id_estudiante,
+        tipo_incidente: "ALERTA_JUDICIAL_DETECTADA",
+        severidad: "CRITICO",
+        descripcion: input.mensaje,
+        coordenadas: input.coordenadas,
+        registrado_por_usuario: input.registrado_por_usuario,
+      });
+      idIncidente = created.id_incidente;
+      fechaHora = created.fecha_hora;
+    }
+
+    if (this.auditService) {
+      await this.auditService.logCriticalEvent({
+        tipo_evento: "ALERTA_JUDICIAL_ACTIVADA",
+        id_usuario: input.registrado_por_usuario ?? undefined,
+        id_estudiante: input.id_estudiante,
+        id_viaje: input.id_viaje,
+        payload: {
+          id_incidente: idIncidente,
+          id_alerta: input.id_alerta,
+          codigo: "ALERTA_JUDICIAL_BLOQUEANTE",
+          radicado_medida: input.radicado_medida,
+          juzgado_emisor: input.juzgado_emisor,
+          tipo_receptor_intentado: input.tipo_receptor_intentado,
+          menor_permanece_a_bordo: true,
+          notificaciones_sms_emergencia: input.notificaciones_sms_emergencia,
+          alerta_policia_infancia_enviada:
+            input.alerta_policia_infancia_enviada,
+          severidad: "CRITICO",
+        },
+      });
+    }
+
+    let alertaEmitida = false;
+    if (this.realtimePort?.emitJudicialAlert) {
+      const judicialPayload: JudicialAlertEventPayload = {
+        evento: "coordination:judicial_alert",
+        codigo: "ALERTA_JUDICIAL_BLOQUEANTE",
+        tipo_notificacion: "ALERTA_JUDICIAL_ACTIVADA",
+        severidad: "CRITICO",
+        id_alerta: input.id_alerta,
+        id_incidente: idIncidente,
+        id_viaje: input.id_viaje,
+        id_ruta: input.id_ruta,
+        id_estudiante: input.id_estudiante,
+        radicado_medida: input.radicado_medida,
+        juzgado_emisor: input.juzgado_emisor,
+        menor_permanece_a_bordo: true,
+        notificaciones_sms_emergencia: input.notificaciones_sms_emergencia,
+        alerta_policia_infancia_enviada: input.alerta_policia_infancia_enviada,
+        registrado_por_usuario: input.registrado_por_usuario,
+        coordenadas: input.coordenadas,
+        mensaje: input.mensaje,
+        fecha_hora: fechaHora.toISOString(),
+      };
+      await this.realtimePort.emitJudicialAlert(judicialPayload);
+      alertaEmitida = true;
+    }
+
+    if (this.realtimePort?.emitUnauthorizedReceptorAlert) {
+      const compatPayload: UnauthorizedReceptorAlertEventPayload = {
+        evento: "coordination:unauthorized_receptor_alert",
+        codigo: "ALERTA_JUDICIAL_BLOQUEANTE",
+        severidad: "CRITICO",
+        id_incidente: idIncidente,
+        id_viaje: input.id_viaje,
+        id_estudiante: input.id_estudiante,
+        tipo_receptor_intentado: input.tipo_receptor_intentado,
+        mensaje: input.mensaje,
+        registrado_por_usuario: input.registrado_por_usuario,
+        coordenadas: input.coordenadas,
+        fecha_hora: fechaHora.toISOString(),
+      };
+      await this.realtimePort.emitUnauthorizedReceptorAlert(compatPayload);
+      alertaEmitida = true;
+    }
+
+    this.logger.warn(
+      `[ALERTA_JUDICIAL_BLOQUEANTE] Viaje=${input.id_viaje} Estudiante=${input.id_estudiante} Incidente=${idIncidente} Radicado=${input.radicado_medida ?? "N/A"}`,
+    );
+
+    return {
+      id_incidente: idIncidente,
       alerta_coordinacion_emitida: alertaEmitida,
     };
   }

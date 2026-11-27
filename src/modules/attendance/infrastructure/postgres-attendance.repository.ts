@@ -840,8 +840,15 @@ export class PostgresAttendanceRepository
     }
 
     if (pgErr?.code === "42501") {
-      if (message.includes("ALERTA_JUDICIAL_ACTIVA")) {
-        throw new JudicialAlertBlockedError(context.idEstudiante);
+      if (
+        message.includes("ALERTA_JUDICIAL_BLOQUEANTE") ||
+        message.includes("ALERTA_JUDICIAL_ACTIVA")
+      ) {
+        const radicadoMatch = message.match(/radicado ([^,)]+)/i);
+        throw new JudicialAlertBlockedError(
+          context.idEstudiante,
+          radicadoMatch?.[1]?.trim(),
+        );
       }
       if (message.includes("AUTORIZACION_VENCIDA")) {
         throw new AuthorizationExpiredError(context.idEstudiante, new Date());

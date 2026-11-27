@@ -3,6 +3,10 @@ import { ConfigService } from "@nestjs/config";
 import { AuditModule } from "../audit/audit.module";
 import { CustodyModule } from "../custody/custody.module";
 import { CustodyService } from "../custody/custody.service";
+import {
+  IJudicialAlertRepository,
+  JUDICIAL_ALERT_REPOSITORY,
+} from "../custody/judicial-alerts/domain/judicial-alert-repository.port";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { AttendanceController } from "./attendance.controller";
 import { AttendanceService } from "./attendance.service";
@@ -12,10 +16,15 @@ import { DeliveryValidationService } from "./delivery-validation.service";
 import { DisembarkUseCase } from "./disembark.use-case";
 import { ATTENDANCE_REALTIME_PORT } from "./domain/attendance-realtime.port";
 import { ATTENDANCE_REPOSITORY } from "./domain/attendance-repository.port";
+import {
+  DELIVERY_INTERCEPTORS,
+  DeliveryInterceptorChain,
+} from "./domain/delivery-interceptor.interface";
 import { IncidentLogger } from "./incident-logger.service";
 import { AttendanceRealtimeGateway } from "./infrastructure/attendance-realtime.gateway";
 import { InMemoryAttendanceRepository } from "./infrastructure/in-memory-attendance.repository";
 import { PostgresAttendanceRepository } from "./infrastructure/postgres-attendance.repository";
+import { JudicialAlertDeliveryInterceptor } from "./judicial-alert-delivery.interceptor";
 import { QrTokenValidator } from "./qr-token-validator.service";
 
 @Module({
@@ -26,11 +35,17 @@ import { QrTokenValidator } from "./qr-token-validator.service";
     CapacityEnforcer,
     {
       provide: ATTENDANCE_REPOSITORY,
-      inject: [ConfigService, CapacityEnforcer, CustodyService],
+      inject: [
+        ConfigService,
+        CapacityEnforcer,
+        CustodyService,
+        JUDICIAL_ALERT_REPOSITORY,
+      ],
       useFactory: (
         config: ConfigService,
         capacityEnforcer: CapacityEnforcer,
         custodyService: CustodyService,
+        judicialAlertRepository: IJudicialAlertRepository,
       ) => {
         const usePostgres =
           config.get<string>("ATTENDANCE_USE_POSTGRES") === "true";
@@ -46,6 +61,7 @@ import { QrTokenValidator } from "./qr-token-validator.service";
         return new InMemoryAttendanceRepository(
           capacityEnforcer,
           custodyService,
+          judicialAlertRepository,
         );
       },
     },
@@ -57,12 +73,24 @@ import { QrTokenValidator } from "./qr-token-validator.service";
     IncidentLogger,
     BoardingNotificationQueueService,
     DeliveryValidationService,
+    JudicialAlertDeliveryInterceptor,
+    {
+      provide: DELIVERY_INTERCEPTORS,
+      inject: [JudicialAlertDeliveryInterceptor],
+      useFactory: (judicialInterceptor: JudicialAlertDeliveryInterceptor) => [
+        judicialInterceptor,
+      ],
+    },
+    DeliveryInterceptorChain,
     DisembarkUseCase,
     AttendanceService,
   ],
   exports: [
     AttendanceService,
     DeliveryValidationService,
+    JudicialAlertDeliveryInterceptor,
+    DeliveryInterceptorChain,
+    DELIVERY_INTERCEPTORS,
     DisembarkUseCase,
     CapacityEnforcer,
     IncidentLogger,

@@ -6,8 +6,10 @@ import {
   Injectable,
   NotFoundException,
   Optional,
+  ServiceUnavailableException,
   UnprocessableEntityException,
 } from "@nestjs/common";
+import { JudicialProtectionEngineError } from "../custody/judicial-alerts/domain/judicial-alert.types";
 import { BoardingNotificationQueueService } from "./boarding-notification-queue.service";
 import { DeliveryValidationService } from "./delivery-validation.service";
 import {
@@ -18,6 +20,7 @@ import {
   ATTENDANCE_REPOSITORY,
   IAttendanceRepository,
 } from "./domain/attendance-repository.port";
+import { DeliveryInterceptorChain } from "./domain/delivery-interceptor.interface";
 import {
   AttendanceCoordinates,
   BoardingValidationMethod,
@@ -46,6 +49,7 @@ import {
   StudentNotOnBoardError,
 } from "./domain/disembark.types";
 import { IncidentLogger } from "./incident-logger.service";
+import { JudicialAlertDeliveryInterceptor } from "./judicial-alert-delivery.interceptor";
 
 export interface RegisterDisembarkInput {
   id_viaje: string;
@@ -83,6 +87,8 @@ export interface FinalizeSchoolCustodyInput {
  */
 @Injectable()
 export class DisembarkUseCase {
+  private readonly deliveryInterceptorChain: DeliveryInterceptorChain;
+
   constructor(
     @Inject(ATTENDANCE_REPOSITORY)
     private readonly repository: IAttendanceRepository,
@@ -92,7 +98,20 @@ export class DisembarkUseCase {
     @Optional()
     @Inject(ATTENDANCE_REALTIME_PORT)
     private readonly realtimePort?: IAttendanceRealtimePort,
-  ) {}
+    @Optional()
+    deliveryInterceptorChain?: DeliveryInterceptorChain,
+  ) {
+    this.deliveryInterceptorChain =
+      deliveryInterceptorChain ??
+      new DeliveryInterceptorChain([
+        new JudicialAlertDeliveryInterceptor(
+          this.repository,
+          this.deliveryValidationService,
+          this.incidentLogger,
+          this.notificationQueue,
+        ),
+      ]);
+  }
 
   /**
    * Ejecuta el desembarque seguro de un único estudiante (`POST /asistencia/descenso`).
@@ -145,6 +164,20 @@ export class DisembarkUseCase {
         }
 
         try {
+          // Cadena OCP de interceptores cautelares (Issue #10: motor judicial con prioridad absoluta)
+          await this.deliveryInterceptorChain.execute({
+            id_viaje: input.id_viaje,
+            id_ruta: tripOccupancy.id_ruta,
+            id_estudiante: input.id_estudiante,
+            tipo_receptor: input.tipo_receptor,
+            documento_receptor: input.documento_receptor,
+            documento_blind_index: input.documento_blind_index,
+            id_receptor: input.id_receptor,
+            tipo_recorrido: tripDirection,
+            coordenadas_gps: input.coordenadas_gps,
+            registrado_por_usuario: input.registrado_por_usuario ?? null,
+          });
+
           const validation =
             await this.deliveryValidationService.validateReceptorForDelivery({
               id_estudiante: input.id_estudiante,
@@ -160,7 +193,13 @@ export class DisembarkUseCase {
           validatedReceptorId =
             validation.id_acudiente ?? validation.id_autorizado ?? null;
         } catch (validationError) {
-          if (this.isReceptorSecurityDenial(validationError)) {
+          if (
+            this.isReceptorSecurityDenial(validationError) &&
+            !(
+              validationError instanceof JudicialAlertBlockedError &&
+              validationError.alreadyLogged
+            )
+          ) {
             await this.incidentLogger.logUnauthorizedReceptorIncident({
               id_viaje: input.id_viaje,
               id_estudiante: input.id_estudiante,
@@ -501,8 +540,31 @@ export class DisembarkUseCase {
       });
     }
 
+    if (error instanceof JudicialAlertBlockedError) {
+      throw new ForbiddenException({
+        code: error.code,
+        error: error.code,
+        message: error.message,
+        id_alerta: error.idAlerta,
+        id_incidente: error.idIncidente,
+        radicado_medida: error.radicado ?? null,
+        juzgado_emisor: error.juzgadoEmisor,
+        menor_permanece_a_bordo: true,
+        notificaciones_sms_emergencia: error.smsEmergenciaDespachados,
+        alerta_policia_infancia_enviada: error.alertaPoliciaEnviada,
+      });
+    }
+
+    if (error instanceof JudicialProtectionEngineError) {
+      throw new ServiceUnavailableException({
+        code: error.code,
+        error: error.code,
+        message: error.message,
+        menor_permanece_a_bordo: true,
+      });
+    }
+
     if (
-      error instanceof JudicialAlertBlockedError ||
       error instanceof ReceptorUnauthorizedError ||
       error instanceof AuthorizationExpiredError ||
       error instanceof ReceptorInactiveOrRevokedError ||

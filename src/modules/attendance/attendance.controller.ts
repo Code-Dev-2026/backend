@@ -133,7 +133,7 @@ export class AttendanceController {
   @ApiResponse({
     status: 403,
     description:
-      "Rol sin permiso, alerta judicial activa, receptor no autorizado, inactivo/revocado o autorización vencida.",
+      "Rol sin permiso, alerta judicial bloqueante (ALERTA_JUDICIAL_BLOQUEANTE), receptor no autorizado, inactivo/revocado o autorización vencida.",
   })
   @ApiResponse({
     status: 404,

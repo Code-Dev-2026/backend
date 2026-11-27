@@ -4,7 +4,7 @@ Backend del sistema **Camino Seguro**, plataforma de control de custodia física
 
 Construido con **NestJS 10**, **TypeScript (modo estricto)** y **PostgreSQL 16 + PostGIS 3.4**, bajo **Arquitectura Hexagonal (Ports & Adapters)**, **Clean Architecture**, controles **OWASP ASVS L2** y cumplimiento de la **Ley Estatutaria 1581 de 2012** (Habeas Data).
 
-> Alcance actual de esta documentación: **Issues #1 a #9** (Sprints 0, 1 y 2). Los issues #10 en adelante se encuentran fuera del alcance de esta guía y se documentarán conforme se integren.
+> Alcance actual de esta documentación: **Issues #1 a #10** (Sprints 0, 1 y 2). Los issues #11 en adelante se encuentran fuera del alcance de esta guía y se documentarán conforme se integren.
 
 ---
 
@@ -128,7 +128,7 @@ npm test
 npm run test:cov
 ```
 
-- `npm test` ejecuta Jest sobre `src/**/*.spec.ts`. *(Comprobado: 53 suites aprobadas, 4 suites de integración PostgreSQL/PostGIS omitidas cuando no hay BD configurada, 400 pruebas aprobadas y 11 omitidas; código de salida `0`.)*
+- `npm test` ejecuta Jest sobre `src/**/*.spec.ts`. *(Comprobado: 56 suites aprobadas, 5 suites de integración PostgreSQL/PostGIS omitidas cuando no hay BD configurada, 409 pruebas aprobadas y 12 omitidas; código de salida `0`.)*
 - `npm run test:cov` genera el reporte en `coverage/`. *(Comprobado: cobertura global actual de 79.36% sentencias / 78.71% líneas con las 4 suites de integración PostgreSQL omitidas.)*
 
 ### Pruebas E2E (`test:e2e`)
@@ -164,7 +164,7 @@ npm run start:dev
 | Script | Comando subyacente | Estado verificado |
 | --- | --- | --- |
 | `npm run build` | `nest build` | Comprobado (OK) |
-| `npm test` | `jest` | Comprobado (OK: 53 suites, 400 tests; 4 suites de integración BD omitidas) |
+| `npm test` | `jest` | Comprobado (OK: 56 suites, 409 tests; 5 suites de integración BD omitidas) |
 | `npm run test:cov` | `jest --coverage` | Comprobado (OK: 79.36% stmts / 78.71% lines) |
 | `npm run test:e2e` | `jest --config ./test/jest-e2e.json` | Falla actualmente en `test/auth.e2e-spec.ts` |
 | `npm run lint` | `eslint "{src,apps,libs,test}/**/*.ts" --fix` | Falla actualmente (falta archivo de configuración ESLint) |
@@ -186,8 +186,8 @@ npm run start:dev
 │   ├── docker-compose.yml                # Servicio PostgreSQL 16 + PostGIS 3.4
 │   ├── migrations/
 │   │   ├── V001__...sql .. V010__...sql  # DDL fundacional (Issue #2)
-│   │   ├── V011__...sql .. V016__...sql  # Migraciones incrementales (Sprints 1 y 2)
-│   │   └── undo/                         # Scripts reversibles U013 a U016
+│   │   ├── V011__...sql .. V017__...sql  # Migraciones incrementales (Sprints 1 y 2)
+│   │   └── undo/                         # Scripts reversibles U013 a U017
 │   └── scripts/
 │       ├── verify-migrations.ps1         # Verificador de migraciones (Windows PowerShell)
 │       ├── verify-migrations.sh          # Verificador de migraciones (Linux/CI)
@@ -220,8 +220,8 @@ npm run start:dev
 │       ├── mailer/                       # Transporte SMTP / log dev para OTP MFA
 │       ├── students/                     # Issues #4 y #5: Expediente cifrado e importación masiva
 │       ├── routes/                       # Issue #6: Rutas, paradas GiST y geocercas
-│       ├── custody/                      # Issue #7: FSM de custodia y cadena WORM
-│       ├── attendance/                   # Issues #8 y #9: Abordaje QR, desembarque y receptores
+│       ├── custody/                      # Issues #7 y #10: FSM de custodia, WORM y alertas judiciales
+│       ├── attendance/                   # Issues #8, #9 y #10: Abordaje QR, desembarque, receptores e interceptores cautelares
 │       ├── schools/                      # Soporte institucional
 │       ├── transport-companies/          # Soporte de empresas transportadoras
 │       ├── trips/                        # Gestión base de viajes
@@ -253,6 +253,7 @@ npm run start:dev
   - [Custodia física: FSM y persistencia WORM](docs/modules/custody.md)
   - [Abordaje QR atómico y control de sobrecupo](docs/modules/qr-boarding.md)
   - [Receptores de entrega, desembarque y retorno seguro](docs/modules/delivery-recipients.md)
+  - [Motor de protección preventiva contra alertas judiciales](docs/modules/judicial-alerts.md)
 - **Gobernanza y flujo de trabajo:**
   - Política de seguridad: [SECURITY.md](SECURITY.md)
   - Guía de contribución: [CONTRIBUTING.md](CONTRIBUTING.md)

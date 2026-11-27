@@ -16,6 +16,7 @@ import { CustodyModule } from "./modules/custody/custody.module";
 import { AttendanceModule } from "./modules/attendance/attendance.module";
 import { PassengersModule } from "./modules/passengers/passengers.module";
 import { TelemetryModule } from "./modules/telemetry/telemetry.module";
+import { GeoMonitoringModule } from "./modules/geo-monitoring/geo-monitoring.module";
 import { TrackingModule } from "./modules/tracking/tracking.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { OfflineModule } from "./modules/offline/offline.module";
@@ -45,6 +46,7 @@ import { BillingIsolationModule } from "./modules/billing-isolation/billing-isol
     // Sprint 3
     PassengersModule,
     TelemetryModule,
+    GeoMonitoringModule,
     TrackingModule,
     NotificationsModule,
     // Sprint 4

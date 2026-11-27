@@ -13,10 +13,10 @@ Trazabilidad entre los issues implementados y cerrados en `develop` (Sprints 0, 
 | `#3` | Sprint 1 | Autenticación JWT con rotación, RBAC y MFA | `src/modules/auth/`, `src/modules/mailer/`, `src/common/guards/` | [auth.md](modules/auth.md) | Documentado |
 | `#4` | Sprint 1 | Criptovault AES-256-GCM y Blind Indexing | `src/common/crypto/`, `src/common/security/`, `src/modules/students/`, `db/migrations/V011` | [crypto-vault.md](modules/crypto-vault.md) | Documentado |
 | `#5` | Sprint 1 | Importación masiva de matrículas | `src/modules/students/import/`, `db/migrations/V012` | [enrollment-import.md](modules/enrollment-import.md) | Documentado |
-| `#6` | Sprint 2 | Modelado geoespacial, rutas, paradas y geocercas | `src/modules/routes/`, `db/migrations/V013` | `docs/modules/geo.md` | Pendiente (Etapa Sprint 2) |
-| `#7` | Sprint 2 | Custodia física: máquina de estados FSM y WORM | `src/modules/custody/`, `db/migrations/V014` | `docs/modules/custody.md` | Pendiente (Etapa Sprint 2) |
-| `#8` | Sprint 2 | Abordaje QR atómico y prevención de sobrecupo | `src/modules/attendance/`, `db/migrations/V015` | `docs/modules/qr-boarding.md` | Pendiente (Etapa Sprint 2) |
-| `#9` | Sprint 2 | Receptores de entrega, desembarque y retorno seguro | `src/modules/attendance/`, `db/migrations/V016` | `docs/modules/delivery-recipients.md` | Pendiente (Etapa Sprint 2) |
+| `#6` | Sprint 2 | Modelado geoespacial, rutas, paradas y geocercas | `src/modules/routes/`, `db/migrations/V013` | [geo.md](modules/geo.md) | Documentado |
+| `#7` | Sprint 2 | Custodia física: máquina de estados FSM y WORM | `src/modules/custody/`, `src/modules/trips/`, `db/migrations/V014` | [custody.md](modules/custody.md) | Documentado |
+| `#8` | Sprint 2 | Abordaje QR atómico y prevención de sobrecupo | `src/modules/attendance/`, `db/migrations/V015` | [qr-boarding.md](modules/qr-boarding.md) | Documentado |
+| `#9` | Sprint 2 | Receptores de entrega, desembarque y retorno seguro | `src/modules/attendance/`, `db/migrations/V016` | [delivery-recipients.md](modules/delivery-recipients.md) | Documentado |
 
 ---
 

@@ -249,6 +249,10 @@ npm run start:dev
   - [Autenticación JWT con rotación, RBAC y MFA](docs/modules/auth.md)
   - [Criptovault AES-256-GCM, Blind Indexing y Expedientes](docs/modules/crypto-vault.md)
   - [Importación masiva de matrículas](docs/modules/enrollment-import.md)
+  - [Geoespacial: rutas, paradas GiST y geocercas](docs/modules/geo.md)
+  - [Custodia física: FSM y persistencia WORM](docs/modules/custody.md)
+  - [Abordaje QR atómico y control de sobrecupo](docs/modules/qr-boarding.md)
+  - [Receptores de entrega, desembarque y retorno seguro](docs/modules/delivery-recipients.md)
 - **Gobernanza y flujo de trabajo:**
   - Política de seguridad: [SECURITY.md](SECURITY.md)
   - Guía de contribución: [CONTRIBUTING.md](CONTRIBUTING.md)

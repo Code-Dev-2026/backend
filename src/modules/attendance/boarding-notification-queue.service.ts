@@ -1,6 +1,19 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
 import { uuidv7 } from "@common/utils/uuidv7";
+import { NotificationTypeCode } from "../notifications/domain/notification-dispatch.types";
+import { NotificationDispatcherService } from "../notifications/notification-dispatcher.service";
 import { NotificationsService } from "../notifications/notifications.service";
+
+/** Clasificación en `tipo_notificacion` (V007), idéntica a la que usan V015/V016. */
+const REALTIME_TYPE_BY_EVENT: Record<
+  "ABORDAJE_EXITOSO" | "DESCENSO_EXITOSO" | "INCIDENTE_ENTREGA" | "RECEPCION_SEDE",
+  NotificationTypeCode
+> = {
+  ABORDAJE_EXITOSO: "ABORDAJE_EXITOSO",
+  DESCENSO_EXITOSO: "DESCENSO_EXITOSO",
+  INCIDENTE_ENTREGA: "INCIDENTE_ENTREGA",
+  RECEPCION_SEDE: "DESCENSO_EXITOSO",
+};
 
 export interface EnqueueBoardingPushInput {
   id_notificacion_existente?: string | null;
@@ -103,6 +116,13 @@ export class BoardingNotificationQueueService {
   constructor(
     @Optional()
     private readonly notificationsService?: NotificationsService,
+    /**
+     * Issue #15: si está disponible, la notificación se persiste en `notificacion`
+     * y se entrega en tiempo real a la sala familiar con confirmación y reintentos.
+     * Sin él se conserva el comportamiento previo (#8/#9).
+     */
+    @Optional()
+    private readonly dispatcher?: NotificationDispatcherService,
   ) {}
 
   enqueueGuardianBoardingNotification(
@@ -130,23 +150,35 @@ export class BoardingNotificationQueueService {
     };
     this.queuedByKey.set(idempotencyKey, record);
 
-    if (this.notificationsService) {
+    if (this.dispatcher || this.notificationsService) {
+      const datosAdicionales = {
+        id_viaje: input.id_viaje,
+        id_asistencia: input.id_asistencia,
+        id_notificacion: idNotificacion,
+        total_a_bordo: String(input.total_a_bordo),
+        capacidad_nominal: String(input.capacidad_nominal),
+        fecha_hora: input.fecha_hora.toISOString(),
+      };
       const dispatchPromise = Promise.resolve()
         .then(async () => {
+          if (this.dispatcher) {
+            await this.dispatchRealtime(record, {
+              codigo_tipo: "ABORDAJE_EXITOSO",
+              titulo: "Abordaje confirmado",
+              mensaje: "El estudiante ha subido al vehículo escolar.",
+              datos_adicionales: datosAdicionales,
+              silenciable: false,
+              ocurrido_en: input.fecha_hora,
+            });
+            return;
+          }
           await this.notificationsService!.sendPushNotification({
             id_estudiante: input.id_estudiante,
             id_acudiente: input.id_acudiente_titular!,
             titulo: "Abordaje confirmado",
             mensaje: "El estudiante ha subido al vehículo escolar.",
             tipo_alerta: "TRANSICION_CUSTODIA",
-            datos_adicionales: {
-              id_viaje: input.id_viaje,
-              id_asistencia: input.id_asistencia,
-              id_notificacion: idNotificacion,
-              total_a_bordo: String(input.total_a_bordo),
-              capacidad_nominal: String(input.capacidad_nominal),
-              fecha_hora: input.fecha_hora.toISOString(),
-            },
+            datos_adicionales: datosAdicionales,
           });
           record.estado = "DESPACHADA";
         })
@@ -447,9 +479,30 @@ export class BoardingNotificationQueueService {
       }
       encoladas += 1;
 
-      if (this.notificationsService) {
+      const realtimeType: NotificationTypeCode | undefined =
+        params.tipo_evento in REALTIME_TYPE_BY_EVENT
+          ? REALTIME_TYPE_BY_EVENT[
+              params.tipo_evento as keyof typeof REALTIME_TYPE_BY_EVENT
+            ]
+          : undefined;
+      if ((this.dispatcher && realtimeType) || this.notificationsService) {
+        const ocurridoEn = new Date();
         const dispatchPromise = Promise.resolve()
           .then(async () => {
+            if (this.dispatcher && realtimeType) {
+              await this.dispatchRealtime(record, {
+                codigo_tipo: realtimeType,
+                titulo: params.titulo,
+                mensaje: params.mensaje,
+                datos_adicionales: {
+                  ...params.datos_adicionales,
+                  id_notificacion: idNotificacion,
+                },
+                silenciable: false,
+                ocurrido_en: ocurridoEn,
+              });
+              return;
+            }
             await this.notificationsService!.sendPushNotification({
               id_estudiante: params.id_estudiante,
               id_acudiente: idAcudiente,
@@ -478,6 +531,38 @@ export class BoardingNotificationQueueService {
     });
 
     return { encoladas, id_notificacion_principal: idPrincipal };
+  }
+
+  /** Persistencia en `notificacion` + entrega en tiempo real a la sala familiar (Issue #15). */
+  private async dispatchRealtime(
+    record: QueuedBoardingNotification,
+    params: {
+      codigo_tipo: NotificationTypeCode;
+      titulo: string;
+      mensaje: string;
+      datos_adicionales: Record<string, string>;
+      silenciable: boolean;
+      ocurrido_en: Date;
+    },
+  ): Promise<void> {
+    const outcome = await this.dispatcher!.enqueue({
+      id_notificacion: record.id_notificacion,
+      idempotency_key: record.idempotency_key,
+      codigo_tipo: params.codigo_tipo,
+      id_acudiente: record.id_acudiente,
+      id_estudiante: record.id_estudiante,
+      id_viaje: record.id_viaje,
+      titulo: params.titulo,
+      mensaje: params.mensaje,
+      payload: params.datos_adicionales,
+      silenciable: params.silenciable,
+      ocurrido_en: params.ocurrido_en,
+    });
+    if (outcome.status === "ENTREGADA" || outcome.status === "YA_ENTREGADA") {
+      record.estado = "DESPACHADA";
+    } else if (outcome.status !== "SIN_CANALES") {
+      record.estado = "FALLIDA";
+    }
   }
 
   listQueuedNotifications(): QueuedBoardingNotification[] {

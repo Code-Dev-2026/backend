@@ -4,6 +4,8 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
+  Optional,
   Param,
   Post,
   Query,
@@ -22,6 +24,7 @@ import {
 import { Roles } from "@common/decorators/roles.decorator";
 import { RoleEnum } from "@common/enums/role.enum";
 import { ParseUUIDv7Pipe } from "@common/pipes/parse-uuidv7.pipe";
+import { CustodyTransitionNotifier } from "../notifications/custody-transition.notifier";
 import { CustodyService } from "./custody.service";
 import {
   EnrollStudentTripDto,
@@ -56,7 +59,14 @@ const CUSTODY_READ_ROLES = [
 @ApiBearerAuth()
 @Controller("custody")
 export class CustodyController {
-  constructor(private readonly custodyService: CustodyService) {}
+  private readonly logger = new Logger(CustodyController.name);
+
+  constructor(
+    private readonly custodyService: CustodyService,
+    /** Issue #15: notificación en tiempo real de cada transición aplicada. */
+    @Optional()
+    private readonly transitionNotifier?: CustodyTransitionNotifier,
+  ) {}
 
   @Post("transitions")
   @Roles(...CUSTODY_OPERATOR_ROLES)
@@ -86,7 +96,7 @@ export class CustodyController {
     @Body() dto: TransitionCustodyDto,
     @CurrentUser() user?: AuthenticatedUser,
   ) {
-    return this.custodyService.executeTransition({
+    const result = await this.custodyService.executeTransition({
       id_viaje: dto.id_viaje,
       id_estudiante: dto.id_estudiante,
       estado_destino: dto.estado_destino,
@@ -96,6 +106,18 @@ export class CustodyController {
       latitud: dto.latitud,
       longitud: dto.longitud,
     });
+
+    // Sin `await`: la notificación no retrasa la respuesta de la transición.
+    if (this.transitionNotifier) {
+      void this.transitionNotifier
+        .notifyTransition(result.history)
+        .catch((err: unknown) =>
+          this.logger.error(
+            `No se pudo notificar la transición ${result.history.id_historial}: ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
+    }
+    return result;
   }
 
   @Post("trips/:tripId/enroll")

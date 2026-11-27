@@ -26,10 +26,16 @@ import {
   GPS_DISPATCH_LATENCY_BUDGET_MS,
   MAX_TRIP_SUBSCRIPTIONS_PER_SOCKET,
   SERVER_EVENTS,
+  familyRoom,
   TELEMETRY_NAMESPACE,
   tripRoom,
 } from "./domain/realtime.constants";
-import { REALTIME_CLOCK, RealtimeClock } from "./domain/realtime-ports";
+import {
+  GUARDIAN_LINK_REPOSITORY,
+  IGuardianLinkRepository,
+  REALTIME_CLOCK,
+  RealtimeClock,
+} from "./domain/realtime-ports";
 import {
   GpsStreamFrame,
   StreamDecision,
@@ -122,6 +128,8 @@ export class TelemetryGateway
     private readonly subscriptions: TripSubscriptionManager,
     @Inject(TELEMETRY_EVENT_DISPATCHER)
     private readonly eventDispatcher: IEventDispatcherPort,
+    @Inject(GUARDIAN_LINK_REPOSITORY)
+    private readonly guardianLinks: IGuardianLinkRepository,
     @Optional() @Inject(REALTIME_CLOCK) clock?: RealtimeClock,
   ) {
     this.clock = clock ?? (() => Date.now());
@@ -188,6 +196,22 @@ export class TelemetryGateway
       return;
     }
     this.subscriptions.registerSocket(client.id, principal);
+
+    // Issue #15: el acudiente autenticado entra solo a SU sala familiar.
+    if (principal.kind === "GUARDIAN") {
+      try {
+        const guardianIds = await this.guardianLinks.listGuardianIdsForUser(
+          principal.id_usuario,
+        );
+        for (const idAcudiente of guardianIds) {
+          await client.join(familyRoom(idAcudiente));
+        }
+      } catch (err: unknown) {
+        this.logger.error(
+          `No se pudo resolver la sala familiar de ${principal.id_usuario}: ${errorMessage(err)}`,
+        );
+      }
+    }
 
     for (const idViaje of readHandshakeTrips(client.handshake.auth)) {
       const ack = await this.subscribeToTrip(client, idViaje);

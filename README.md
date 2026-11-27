@@ -4,7 +4,7 @@ Backend del sistema **Camino Seguro**, plataforma de control de custodia física
 
 Construido con **NestJS 10**, **TypeScript (modo estricto)** y **PostgreSQL 16 + PostGIS 3.4**, bajo **Arquitectura Hexagonal (Ports & Adapters)**, **Clean Architecture**, controles **OWASP ASVS L2** y cumplimiento de la **Ley Estatutaria 1581 de 2012** (Habeas Data).
 
-> Alcance actual de esta documentación: **Issues #1 a #12** (Sprints 0, 1, 2 y primer issue del Sprint 3). Los issues #13 en adelante se encuentran fuera del alcance de esta guía y se documentarán conforme se integren.
+> Alcance actual de esta documentación: **Issues #1 a #13** (Sprints 0, 1, 2 e issues #12–#13 del Sprint 3). Los issues #14 en adelante se encuentran fuera del alcance de esta guía y se documentarán conforme se integren.
 
 ---
 
@@ -60,7 +60,7 @@ La validación al arranque se ejecuta con Joi en `src/config/env.validation.ts`.
 | `DB_NAME` | Sí | `camino_seguro_db` | Nombre de la base de datos |
 | `DB_USER` | Sí | `app_user` | Rol operativo de conexión sin permisos DDL |
 | `DB_PASSWORD` | Sí | *(definido para desarrollo)* | Contraseña del rol operativo (sustituir en despliegues reales) |
-| `GEO_USE_POSTGIS` | No *(pendiente en `.env.example`)* | `false` | Activa el repositorio PostGIS en `RoutesModule` (`true`/`false`) |
+| `GEO_USE_POSTGIS` | No *(pendiente en `.env.example`)* | `false` | Activa los repositorios PostGIS en `RoutesModule` y `GeoMonitoringModule` (`true`/`false`) |
 | `CUSTODY_USE_POSTGRES` | Sí | `false` | Activa el repositorio PostgreSQL en `CustodyModule` (`true`/`false`) |
 | `ATTENDANCE_USE_POSTGRES` | No *(pendiente en `.env.example`)* | `false` | Activa el repositorio PostgreSQL en `AttendanceModule` (`true`/`false`) |
 | `PASSENGERS_USE_POSTGRES` | No *(pendiente en `.env.example`)* | `false` | Activa el repositorio PostgreSQL en `PassengersModule` (`true`/`false`) |
@@ -247,6 +247,7 @@ npm run start:dev
 │       ├── trips/                        # Gestión base de viajes
 │       ├── passengers/                   # Issue #11: Pasajeros ocasionales y reasignación transaccional de cupos
 │       ├── telemetry/                    # Issue #12: Ingesta MQTT TLS/mTLS, validación, batch particionado y fallback HTTPS
+│       ├── geo-monitoring/               # Issue #13: Motor de desvíos (> 300 m) y paradas prolongadas en streaming
 │       ├── tracking/                     # Base Sprint 3 (fuera de alcance)
 │       ├── notifications/                # Base Sprint 3 (usado por eventos de custodia/asistencia)
 │       ├── offline/                      # Base Sprint 4 (fuera de alcance)
@@ -276,6 +277,7 @@ npm run start:dev
   - [Motor de protección preventiva contra alertas judiciales](docs/modules/judicial-alerts.md)
   - [Pasajeros ocasionales y reasignación de cupos](docs/modules/occasional-passengers.md)
   - [Telemetría IoT vehicular vía MQTT y almacenamiento particionado](docs/modules/telemetry.md)
+  - [Motor de desvíos de ruta y paradas prolongadas en streaming](docs/modules/geo-monitoring.md)
 - **Gobernanza y flujo de trabajo:**
   - Política de seguridad: [SECURITY.md](SECURITY.md)
   - Guía de contribución: [CONTRIBUTING.md](CONTRIBUTING.md)

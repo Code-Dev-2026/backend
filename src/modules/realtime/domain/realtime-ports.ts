@@ -14,6 +14,9 @@ export interface IGuardianLinkRepository {
   listGuardianLinksForStudents(
     idEstudiantes: readonly string[],
   ): Promise<GuardianStudentLink[]>;
+
+  /** `id_acudiente` del usuario autenticado (salas familiares, Issue #15). */
+  listGuardianIdsForUser(idUsuario: string): Promise<string[]>;
 }
 
 /**

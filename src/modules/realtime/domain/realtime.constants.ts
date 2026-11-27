@@ -13,6 +13,10 @@ export const TRIP_ROOM_PREFIX = "trip:";
 export const tripRoom = (idViaje: string): string =>
   `${TRIP_ROOM_PREFIX}${idViaje}`;
 
+/** Sala familiar por acudiente (Issue #15): `familia:{id_acudiente}`. */
+export const familyRoom = (idAcudiente: string): string =>
+  `familia:${idAcudiente}`;
+
 /** Mitigación de saturación de CPU: máximo 1 frame GPS cada 2 s por cliente. */
 export const GPS_EMIT_THROTTLE_MS = 2000;
 
@@ -50,6 +54,8 @@ export const SERVER_EVENTS = {
   GPS: "trip:gps",
   STREAM_STATUS: "trip:stream_status",
   AUTH_EXPIRED: "auth:expired",
+  /** Issue #15: notificación con confirmación (ack) del cliente. */
+  NOTIFICATION: "notification:new",
 } as const;
 
 /** Códigos de rechazo del handshake (`connect_error.data.code`). */

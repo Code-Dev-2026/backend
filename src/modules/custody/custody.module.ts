@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { CUSTODY_FSM_PORT } from "@common/ports/custody-fsm.port";
 import { AuditModule } from "../audit/audit.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 import { CustodyController } from "./custody.controller";
 import { CustodyService } from "./custody.service";
 import { CustodyTransitionValidatorService } from "./custody-transition-validator.service";
@@ -16,7 +17,7 @@ import { JudicialAlertsService } from "./judicial-alerts/judicial-alerts.service
 import { MorningCustodyInitJob } from "./morning-custody-init.job";
 
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, NotificationsModule],
   controllers: [CustodyController, JudicialAlertsController],
   providers: [
     {

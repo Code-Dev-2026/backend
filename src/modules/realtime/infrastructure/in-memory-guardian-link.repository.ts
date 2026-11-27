@@ -24,6 +24,16 @@ export class InMemoryGuardianLinkRepository implements IGuardianLinkRepository {
     }
   }
 
+  async listGuardianIdsForUser(idUsuario: string): Promise<string[]> {
+    return Array.from(
+      new Set(
+        this.links
+          .filter((l) => l.id_usuario === idUsuario)
+          .map((l) => l.id_acudiente),
+      ),
+    );
+  }
+
   async listGuardianLinksForStudents(
     idEstudiantes: readonly string[],
   ): Promise<GuardianStudentLink[]> {

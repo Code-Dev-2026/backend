@@ -19,13 +19,35 @@ export interface QueuedBoardingNotification {
   id_viaje: string;
   id_estudiante: string;
   id_acudiente: string;
+  canal?: "PUSH" | "SMS" | "POLICIA_INFANCIA_ADOLESCENCIA";
   tipo_evento?:
     | "ABORDAJE_EXITOSO"
     | "DESCENSO_EXITOSO"
     | "INCIDENTE_ENTREGA"
-    | "RECEPCION_SEDE";
+    | "RECEPCION_SEDE"
+    | "ALERTA_JUDICIAL_ACTIVADA";
+  silenciable?: boolean;
   estado: "ENCOLADA" | "DESPACHADA" | "FALLIDA";
   encolada_en: string;
+}
+
+export interface DispatchJudicialEmergencyAlertsInput {
+  id_notificacion_principal_existente?: string | null;
+  id_viaje: string;
+  id_estudiante: string;
+  id_alerta: string | null;
+  id_incidente: string;
+  radicado_medida: string | null;
+  juzgado_emisor: string | null;
+  id_acudientes_seguros: string[];
+  coordenadas: { latitud: number; longitud: number };
+  fecha_hora: Date;
+}
+
+export interface DispatchJudicialEmergencyAlertsOutcome {
+  sms_encolados: number;
+  id_notificacion_principal: string | null;
+  alerta_policia_infancia_enviada: boolean;
 }
 
 export interface EnqueueDisembarkPushInput {
@@ -225,6 +247,150 @@ export class BoardingNotificationQueueService {
         fecha_recepcion: input.fecha_recepcion.toISOString(),
       },
     });
+  }
+
+  /**
+   * Despacha con prioridad máxima y canal SMS no silenciable la notificación de emergencia
+   * `ALERTA_JUDICIAL_ACTIVADA` hacia los acudientes NO restringidos (ej. madre) y activa
+   * la alerta institucional hacia la Policía de Infancia y Adolescencia (Issue #10).
+   */
+  async dispatchJudicialEmergencyAlerts(
+    input: DispatchJudicialEmergencyAlertsInput,
+  ): Promise<DispatchJudicialEmergencyAlertsOutcome> {
+    const safeGuardians = Array.from(
+      new Set(input.id_acudientes_seguros.filter((id) => Boolean(id))),
+    );
+
+    let smsCount = 0;
+    let idPrincipal: string | null = null;
+    const tasks: Promise<void>[] = [];
+
+    safeGuardians.forEach((idAcudiente, idx) => {
+      const idempotencyKey = `alerta_judicial:${input.id_incidente}:${idAcudiente}`;
+      const existing = this.queuedByKey.get(idempotencyKey);
+      if (existing) {
+        if (!idPrincipal) {
+          idPrincipal = existing.id_notificacion;
+        }
+        smsCount += 1;
+        return;
+      }
+
+      const idNotificacion =
+        idx === 0 && input.id_notificacion_principal_existente
+          ? input.id_notificacion_principal_existente
+          : uuidv7();
+
+      const record: QueuedBoardingNotification = {
+        id_notificacion: idNotificacion,
+        idempotency_key: idempotencyKey,
+        id_viaje: input.id_viaje,
+        id_estudiante: input.id_estudiante,
+        id_acudiente: idAcudiente,
+        canal: "SMS",
+        tipo_evento: "ALERTA_JUDICIAL_ACTIVADA",
+        silenciable: false,
+        estado: "ENCOLADA",
+        encolada_en: new Date().toISOString(),
+      };
+      this.queuedByKey.set(idempotencyKey, record);
+      if (!idPrincipal) {
+        idPrincipal = idNotificacion;
+      }
+      smsCount += 1;
+
+      if (this.notificationsService) {
+        tasks.push(
+          this.notificationsService
+            .sendEmergencySms({
+              id_estudiante: input.id_estudiante,
+              id_acudiente: idAcudiente,
+              id_viaje: input.id_viaje,
+              tipo_notificacion: "ALERTA_JUDICIAL_ACTIVADA",
+              titulo: "EMERGENCIA JUDICIAL: Intento de retiro bloqueado",
+              mensaje:
+                "Detección de individuo con restricción judicial en punto de parada. El menor permanece seguro a bordo del vehículo y se activó alerta a Coordinación y Policía de Infancia y Adolescencia.",
+              prioridad: "MAXIMA",
+              silenciable: false,
+              datos_adicionales: {
+                codigo_bloqueo: "ALERTA_JUDICIAL_BLOQUEANTE",
+                id_alerta: input.id_alerta ?? "",
+                id_incidente: input.id_incidente,
+                radicado_medida: input.radicado_medida ?? "",
+                juzgado_emisor: input.juzgado_emisor ?? "",
+                fecha_hora: input.fecha_hora.toISOString(),
+              },
+            })
+            .then(() => {
+              record.estado = "DESPACHADA";
+            })
+            .catch((error: unknown) => {
+              record.estado = "FALLIDA";
+              this.logger.error(
+                `Error despachando SMS de emergencia judicial ${idNotificacion}: ${error instanceof Error ? error.message : String(error)}`,
+              );
+            }),
+        );
+      }
+    });
+
+    // Activación institucional a la Policía de Infancia y Adolescencia
+    const policeKey = `alerta_judicial_policia:${input.id_incidente}`;
+    let policeAlertSent = false;
+    if (!this.queuedByKey.has(policeKey)) {
+      const policeRecord: QueuedBoardingNotification = {
+        id_notificacion: uuidv7(),
+        idempotency_key: policeKey,
+        id_viaje: input.id_viaje,
+        id_estudiante: input.id_estudiante,
+        id_acudiente: "POLICIA_INFANCIA_Y_ADOLESCENCIA_INSTITUCIONAL",
+        canal: "POLICIA_INFANCIA_ADOLESCENCIA",
+        tipo_evento: "ALERTA_JUDICIAL_ACTIVADA",
+        silenciable: false,
+        estado: "ENCOLADA",
+        encolada_en: new Date().toISOString(),
+      };
+      this.queuedByKey.set(policeKey, policeRecord);
+
+      if (this.notificationsService) {
+        tasks.push(
+          this.notificationsService
+            .dispatchChildProtectionPoliceAlert({
+              id_estudiante: input.id_estudiante,
+              id_viaje: input.id_viaje,
+              id_alerta: input.id_alerta,
+              id_incidente: input.id_incidente,
+              radicado_medida: input.radicado_medida,
+              juzgado_emisor: input.juzgado_emisor,
+              coordenadas: input.coordenadas,
+              mensaje: `ALERTA_JUDICIAL_BLOQUEANTE: Individuo con restricción judicial activa (radicado ${input.radicado_medida ?? "N/A"}) intentó retirar al menor ${input.id_estudiante} en el viaje ${input.id_viaje}. El menor permanece a bordo bajo custodia.`,
+            })
+            .then(() => {
+              policeRecord.estado = "DESPACHADA";
+              policeAlertSent = true;
+            })
+            .catch((error: unknown) => {
+              policeRecord.estado = "FALLIDA";
+              this.logger.error(
+                `Error activando alerta a Policía de Infancia y Adolescencia: ${error instanceof Error ? error.message : String(error)}`,
+              );
+            }),
+        );
+      } else {
+        policeRecord.estado = "DESPACHADA";
+        policeAlertSent = true;
+      }
+    } else {
+      policeAlertSent = true;
+    }
+
+    await Promise.allSettled(tasks);
+
+    return {
+      sms_encolados: smsCount,
+      id_notificacion_principal: idPrincipal,
+      alerta_policia_infancia_enviada: policeAlertSent,
+    };
   }
 
   private enqueueMultiGuardian(params: {

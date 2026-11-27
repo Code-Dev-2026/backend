@@ -299,6 +299,27 @@ export interface UnauthorizedReceptorAlertEventPayload {
   fecha_hora: string;
 }
 
+export interface JudicialAlertEventPayload {
+  evento: "coordination:judicial_alert";
+  codigo: "ALERTA_JUDICIAL_BLOQUEANTE";
+  tipo_notificacion: "ALERTA_JUDICIAL_ACTIVADA";
+  severidad: "CRITICO";
+  id_alerta: string | null;
+  id_incidente: string;
+  id_viaje: string;
+  id_ruta: string | null;
+  id_estudiante: string;
+  radicado_medida: string | null;
+  juzgado_emisor: string | null;
+  menor_permanece_a_bordo: true;
+  notificaciones_sms_emergencia: number;
+  alerta_policia_infancia_enviada: boolean;
+  registrado_por_usuario: string | null;
+  coordenadas: AttendanceCoordinates;
+  mensaje: string;
+  fecha_hora: string;
+}
+
 export interface SchoolCustodyFinalizedEventPayload {
   evento: "custody:school_return_completed";
   id_viaje: string;
@@ -366,17 +387,39 @@ export class IncompatibleTripDirectionError extends Error {
   }
 }
 
+export interface JudicialAlertBlockDetails {
+  idAlerta?: string | null;
+  idIncidente?: string | null;
+  juzgadoEmisor?: string | null;
+  smsEmergenciaDespachados?: number;
+  alertaPoliciaEnviada?: boolean;
+  alreadyLogged?: boolean;
+}
+
 export class JudicialAlertBlockedError extends Error {
-  readonly code = "ALERTA_JUDICIAL_ACTIVA";
+  readonly code = "ALERTA_JUDICIAL_BLOQUEANTE";
+  readonly idAlerta: string | null;
+  readonly idIncidente: string | null;
+  readonly juzgadoEmisor: string | null;
+  readonly smsEmergenciaDespachados: number;
+  readonly alertaPoliciaEnviada: boolean;
+  readonly alreadyLogged: boolean;
 
   constructor(
     public readonly idEstudiante: string,
     public readonly radicado?: string,
+    details?: JudicialAlertBlockDetails,
   ) {
     super(
-      `ALERTA JUDICIAL ACTIVA: Prohibida la entrega del menor '${idEstudiante}' a esta persona bajo medida cautelar judicial${radicado ? ` (radicado ${radicado})` : ""}.`,
+      `ALERTA_JUDICIAL_BLOQUEANTE: Prohibida la entrega del menor '${idEstudiante}' a esta persona bajo medida cautelar judicial${radicado ? ` (radicado ${radicado})` : ""}. El menor permanece a bordo bajo custodia.`,
     );
     this.name = "JudicialAlertBlockedError";
+    this.idAlerta = details?.idAlerta ?? null;
+    this.idIncidente = details?.idIncidente ?? null;
+    this.juzgadoEmisor = details?.juzgadoEmisor ?? null;
+    this.smsEmergenciaDespachados = details?.smsEmergenciaDespachados ?? 0;
+    this.alertaPoliciaEnviada = details?.alertaPoliciaEnviada ?? false;
+    this.alreadyLogged = details?.alreadyLogged ?? false;
   }
 }
 

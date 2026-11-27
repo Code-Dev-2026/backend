@@ -14,6 +14,7 @@ import {
 } from "../domain/attendance.types";
 import {
   FailedDeliveryAlertEventPayload,
+  JudicialAlertEventPayload,
   SchoolCustodyFinalizedEventPayload,
   StudentDisembarkedEventPayload,
   UnauthorizedReceptorAlertEventPayload,
@@ -144,6 +145,22 @@ export class AttendanceRealtimeGateway implements IAttendanceRealtimePort {
     this.server
       .to(COORDINATION_ALERT_ROOM)
       .emit("coordination:unauthorized_receptor_alert", payload);
+  }
+
+  async emitJudicialAlert(payload: JudicialAlertEventPayload): Promise<void> {
+    if (!this.server) {
+      this.logger.warn(
+        `[Socket.IO pendiente] coordination:judicial_alert viaje=${payload.id_viaje} incidente=${payload.id_incidente} radicado=${payload.radicado_medida ?? "N/A"}`,
+      );
+      return;
+    }
+
+    this.server
+      .to(COORDINATION_ALERT_ROOM)
+      .emit("coordination:judicial_alert", payload);
+    this.logger.warn(
+      `[Socket.IO] Emitida alerta judicial crítica a '${COORDINATION_ALERT_ROOM}' viaje=${payload.id_viaje} incidente=${payload.id_incidente}`,
+    );
   }
 
   async emitSchoolCustodyFinalized(

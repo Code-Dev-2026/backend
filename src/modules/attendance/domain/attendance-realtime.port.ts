@@ -4,6 +4,7 @@ import {
 } from "./attendance.types";
 import {
   FailedDeliveryAlertEventPayload,
+  JudicialAlertEventPayload,
   SchoolCustodyFinalizedEventPayload,
   StudentDisembarkedEventPayload,
   UnauthorizedReceptorAlertEventPayload,
@@ -13,7 +14,7 @@ export const ATTENDANCE_REALTIME_PORT = Symbol("ATTENDANCE_REALTIME_PORT");
 
 /**
  * Puerto de emisión en tiempo real vía Socket.IO para eventos de abordaje,
- * desembarque seguro, alertas de sobrecupo y protocolo de retorno a sede (Issues #8 y #9).
+ * desembarque seguro, alertas de sobrecupo, alertas judiciales y retorno a sede (Issues #8, #9 y #10).
  */
 export interface IAttendanceRealtimePort {
   emitStudentBoarded(payload: StudentBoardedEventPayload): Promise<void>;
@@ -27,6 +28,7 @@ export interface IAttendanceRealtimePort {
   emitUnauthorizedReceptorAlert?(
     payload: UnauthorizedReceptorAlertEventPayload,
   ): Promise<void>;
+  emitJudicialAlert?(payload: JudicialAlertEventPayload): Promise<void>;
   emitSchoolCustodyFinalized?(
     payload: SchoolCustodyFinalizedEventPayload,
   ): Promise<void>;

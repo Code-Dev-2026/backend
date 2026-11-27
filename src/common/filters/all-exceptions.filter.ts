@@ -25,6 +25,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | object = "Error interno del servidor";
     let errorName = "InternalServerError";
+    let errorCode: string | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -32,8 +33,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
       if (typeof res === "string") {
         message = res;
       } else if (typeof res === "object" && res !== null) {
-        message = (res as { message?: string | object }).message || res;
-        errorName = (res as { error?: string }).error || exception.name;
+        const resObj = res as {
+          message?: string | object;
+          error?: string;
+          code?: string;
+        };
+        message = resObj.message || res;
+        errorName = resObj.error || exception.name;
+        if (typeof resObj.code === "string" && resObj.code.length > 0) {
+          errorCode = resObj.code;
+        }
       }
     } else if (exception instanceof Error) {
       errorName = exception.name;
@@ -54,6 +63,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     response.status(status).json({
       statusCode: status,
+      ...(errorCode ? { code: errorCode } : {}),
       timestamp: new Date().toISOString(),
       path: request.url,
       method: request.method,

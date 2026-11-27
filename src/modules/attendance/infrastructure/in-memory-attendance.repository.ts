@@ -1,4 +1,4 @@
-import { Injectable, Optional } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import * as crypto from "crypto";
 import { TripStateEnum } from "@common/enums/trip-state.enum";
 import { uuidv7 } from "@common/utils/uuidv7";
@@ -7,6 +7,10 @@ import {
   FsmCustodyState,
   TripDirection,
 } from "../../custody/domain/custody.types";
+import {
+  IJudicialAlertRepository,
+  JUDICIAL_ALERT_REPOSITORY,
+} from "../../custody/judicial-alerts/domain/judicial-alert-repository.port";
 import { CapacityEnforcer } from "../capacity-enforcer.service";
 import { IAttendanceRepository } from "../domain/attendance-repository.port";
 import {
@@ -155,6 +159,9 @@ export class InMemoryAttendanceRepository implements IAttendanceRepository {
   constructor(
     @Optional() capacityEnforcer?: CapacityEnforcer,
     @Optional() private readonly custodyService?: CustodyService,
+    @Optional()
+    @Inject(JUDICIAL_ALERT_REPOSITORY)
+    private readonly judicialAlertRepository?: IJudicialAlertRepository,
   ) {
     this.capacityEnforcer = capacityEnforcer ?? new CapacityEnforcer();
   }
@@ -511,6 +518,30 @@ export class InMemoryAttendanceRepository implements IAttendanceRepository {
       return null;
     }
 
+    const alertsMap = new Map<string, ActiveJudicialAlertRecord>();
+    for (const localAlert of this.judicialAlerts) {
+      if (localAlert.id_estudiante === idEstudiante) {
+        alertsMap.set(localAlert.id_alerta, { ...localAlert });
+      }
+    }
+
+    if (this.judicialAlertRepository) {
+      const storeAlerts = await this.judicialAlertRepository.listByStudent(
+        idEstudiante,
+        false,
+      );
+      for (const stored of storeAlerts) {
+        alertsMap.set(stored.id_alerta, {
+          id_alerta: stored.id_alerta,
+          id_estudiante: stored.id_estudiante,
+          radicado_medida: stored.radicado_medida,
+          individuo_blind_index: stored.documento_restringido_hash,
+          activa: stored.activa,
+          eliminado_soft: stored.eliminado_soft,
+        });
+      }
+    }
+
     return {
       id_estudiante: student.id_estudiante,
       id_colegio: student.id_colegio ?? null,
@@ -527,9 +558,7 @@ export class InMemoryAttendanceRepository implements IAttendanceRepository {
       autorizados: this.authorizedAdultLinks
         .filter((a) => a.id_estudiante === idEstudiante)
         .map((a) => ({ ...a })),
-      alertas_judiciales: this.judicialAlerts
-        .filter((al) => al.id_estudiante === idEstudiante)
-        .map((al) => ({ ...al })),
+      alertas_judiciales: Array.from(alertsMap.values()),
     };
   }
 
@@ -784,7 +813,26 @@ export class InMemoryAttendanceRepository implements IAttendanceRepository {
           throw new JudicialAlertBlockedError(
             student.id_estudiante,
             activeJudicial.radicado_medida,
+            { idAlerta: activeJudicial.id_alerta },
           );
+        }
+
+        if (this.judicialAlertRepository) {
+          const storeJudicial =
+            await this.judicialAlertRepository.findActiveMatchByBlindIndex(
+              student.id_estudiante,
+              blindIndex,
+            );
+          if (storeJudicial) {
+            throw new JudicialAlertBlockedError(
+              student.id_estudiante,
+              storeJudicial.radicado_medida,
+              {
+                idAlerta: storeJudicial.id_alerta,
+                juzgadoEmisor: storeJudicial.juzgado_emisor,
+              },
+            );
+          }
         }
 
         if (tipoReceptor === ReceptorType.ACUDIENTE) {

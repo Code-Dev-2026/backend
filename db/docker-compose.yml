@@ -30,6 +30,35 @@ services:
     networks:
       - camino_seguro_net
 
+  # ============================================================================
+  # BROKER IOT MQTT: Eclipse Mosquitto 2.0 (MQTTS / mTLS + ACL por Vehículo)
+  # Activar tras generar certificados con docker/mosquitto/generate-dev-certs.*:
+  #   docker compose --profile mqtt up -d
+  # ============================================================================
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: camino-seguro-mosquitto
+    profiles:
+      - mqtt
+    restart: unless-stopped
+    ports:
+      - "${MOSQUITTO_TLS_PORT:-8883}:8883"
+    volumes:
+      - ../docker/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ../docker/mosquitto/acl.conf:/mosquitto/config/acl.conf:ro
+      - ../docker/mosquitto/passwd:/mosquitto/config/passwd:ro
+      - ../docker/mosquitto/certs:/mosquitto/certs:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    healthcheck:
+      test: ["CMD-SHELL", "pidof mosquitto >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - camino_seguro_net
+
 networks:
   camino_seguro_net:
     driver: bridge
@@ -38,3 +67,7 @@ networks:
 volumes:
   postgres_data:
     name: camino_seguro_postgres_data
+  mosquitto_data:
+    name: camino_seguro_mosquitto_data
+  mosquitto_log:
+    name: camino_seguro_mosquitto_log

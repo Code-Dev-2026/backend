@@ -4,7 +4,7 @@ Backend del sistema **Camino Seguro**, plataforma de control de custodia física
 
 Construido con **NestJS 10**, **TypeScript (modo estricto)** y **PostgreSQL 16 + PostGIS 3.4**, bajo **Arquitectura Hexagonal (Ports & Adapters)**, **Clean Architecture**, controles **OWASP ASVS L2** y cumplimiento de la **Ley Estatutaria 1581 de 2012** (Habeas Data).
 
-> Alcance actual de esta documentación: **Issues #1 a #11** (Sprints 0, 1 y 2). Los issues #12 en adelante se encuentran fuera del alcance de esta guía y se documentarán conforme se integren.
+> Alcance actual de esta documentación: **Issues #1 a #12** (Sprints 0, 1, 2 y primer issue del Sprint 3). Los issues #13 en adelante se encuentran fuera del alcance de esta guía y se documentarán conforme se integren.
 
 ---
 
@@ -82,7 +82,25 @@ La validación al arranque se ejecuta con Joi en `src/config/env.validation.ts`.
 | `SMTP_USER` | Sí | *(vacío)* | Usuario SMTP |
 | `SMTP_PASSWORD` | Sí | *(vacío)* | Contraseña SMTP |
 | `MAIL_FROM` | Sí | `Camino Seguro <no-reply@caminoseguro.edu.co>` | Remitente de correos OTP |
-| `MQTT_BROKER_URL` | Sí | `mqtt://localhost:1883` | URL del broker MQTT (telemetría IoT) |
+| `MQTT_ENABLED` | Sí | `false` | Activa el suscriptor MQTT TLS/mTLS de telemetría vehicular (`Issue #12`) |
+| `MQTT_BROKER_URL` | Sí | `mqtts://localhost:8883` | URL del broker MQTT/MQTTS (telemetría IoT; exige `mqtts://` o `wss://` en producción) |
+| `MQTT_TOPIC_PATTERN` | Sí | `telemetry/vehicles/+/gps` | Patrón de tópico MQTT suscrito por el backend |
+| `MQTT_CLIENT_ID` | Sí | `camino-seguro-backend-telemetry` | Prefijo del identificador de cliente MQTT |
+| `MQTT_USERNAME` | Sí | *(vacío)* | Usuario del backend en el broker MQTT (sin valor por defecto en `.env.example`) |
+| `MQTT_PASSWORD` | Sí | *(vacío)* | Contraseña del backend en el broker MQTT (solo por entorno) |
+| `MQTT_TLS_CA_PATH` | Sí | *(vacío)* | Ruta al certificado CA para verificar el broker MQTT |
+| `MQTT_TLS_CERT_PATH` | Sí | *(vacío)* | Ruta al certificado cliente mTLS del backend (`OWASP ASVS V10.3`) |
+| `MQTT_TLS_KEY_PATH` | Sí | *(vacío)* | Ruta a la llave privada cliente mTLS del backend |
+| `MQTT_TLS_REJECT_UNAUTHORIZED` | Sí | `true` | Valida el certificado TLS del broker (`true` obligatorio en producción) |
+| `MQTT_RECONNECT_PERIOD_MS` | Sí | `5000` | Intervalo de reconexión automática del cliente MQTT en ms (`>= 250`) |
+| `TELEMETRY_USE_POSTGRES` | Sí | `false` | Activa `PostgresTelemetryRepository` sobre `registro_gps` (`true`/`false`) |
+| `TELEMETRY_BATCH_SIZE` | Sí | `100` | Tamaño máximo de lote para inserción batch en `registro_gps` (`1`–`5000`) |
+| `TELEMETRY_BATCH_FLUSH_MS` | Sí | `100` | Ventana máxima de vaciado del buffer de telemetría en ms (`10`–`10000`) |
+| `TELEMETRY_MAX_ACCURACY_METERS` | Sí | `30` | Umbral máximo de precisión GPS aceptado en metros (lecturas mayores se descartan) |
+| `TELEMETRY_PARTITION_JOB_ENABLED` | Sí | `false` | Habilita el job periódico de creación y retención de particiones GPS |
+| `TELEMETRY_PARTITION_MONTHS_AHEAD` | Sí | `2` | Meses futuros precreados por `fn_crear_particion_gps_mensual` (`0`–`24`) |
+| `TELEMETRY_RETENTION_DAYS` | Sí | `180` | Días de retención de particiones GPS antes de purga (`>= 30`) |
+| `TELEMETRY_PARTITION_JOB_INTERVAL_MS` | Sí | `3600000` | Intervalo de ejecución del job de mantenimiento de particiones en ms (`>= 1000`) |
 
 > Para la base de datos en contenedor, consulta las variables de `db/.env.example` documentadas en [docs/modules/database-migrations.md](docs/modules/database-migrations.md).
 
@@ -129,7 +147,7 @@ npm test
 npm run test:cov
 ```
 
-- `npm test` ejecuta Jest sobre `src/**/*.spec.ts`. *(Comprobado: 58 suites aprobadas, 6 suites de integración PostgreSQL/PostGIS omitidas cuando no hay BD configurada, 427 pruebas aprobadas y 15 omitidas; código de salida `0`.)*
+- `npm test` ejecuta Jest sobre `src/**/*.spec.ts`. *(Comprobado: 61 suites aprobadas, 7 suites de integración PostgreSQL/PostGIS omitidas cuando no hay BD configurada, 444 pruebas aprobadas y 19 omitidas; código de salida `0`.)*
 - `npm run test:cov` genera el reporte en `coverage/`. *(Comprobado: cobertura global actual de 79.36% sentencias / 78.71% líneas con las 4 suites de integración PostgreSQL omitidas.)*
 
 ### Pruebas E2E (`test:e2e`)
@@ -165,7 +183,7 @@ npm run start:dev
 | Script | Comando subyacente | Estado verificado |
 | --- | --- | --- |
 | `npm run build` | `nest build` | Comprobado (OK) |
-| `npm test` | `jest` | Comprobado (OK: 58 suites, 427 tests; 6 suites de integración BD omitidas) |
+| `npm test` | `jest` | Comprobado (OK: 61 suites, 444 tests; 7 suites de integración BD omitidas) |
 | `npm run test:cov` | `jest --coverage` | Comprobado (OK: 79.36% stmts / 78.71% lines) |
 | `npm run test:e2e` | `jest --config ./test/jest-e2e.json` | Falla actualmente en `test/auth.e2e-spec.ts` |
 | `npm run lint` | `eslint "{src,apps,libs,test}/**/*.ts" --fix` | Falla actualmente (falta archivo de configuración ESLint) |
@@ -184,16 +202,17 @@ npm run start:dev
 │   └── skills/gitflow-workflow/SKILL.md  # Procedimiento GitFlow con PRs y ramas protegidas
 ├── db/
 │   ├── .env.example                      # Plantilla de variables de PostgreSQL y roles
-│   ├── docker-compose.yml                # Servicio PostgreSQL 16 + PostGIS 3.4
+│   ├── docker-compose.yml                # PostgreSQL 16 + PostGIS 3.4 y Mosquitto 2.0 mTLS (perfil mqtt)
 │   ├── migrations/
 │   │   ├── V001__...sql .. V010__...sql  # DDL fundacional (Issue #2)
-│   │   ├── V011__...sql .. V018__...sql  # Migraciones incrementales (Sprints 1 y 2)
-│   │   └── undo/                         # Scripts reversibles U013 a U018
+│   │   ├── V011__...sql .. V019__...sql  # Migraciones incrementales (Sprints 1, 2 y 3)
+│   │   └── undo/                         # Scripts reversibles U013 a U019
 │   └── scripts/
 │       ├── verify-migrations.ps1         # Verificador de migraciones (Windows PowerShell)
 │       ├── verify-migrations.sh          # Verificador de migraciones (Linux/CI)
 │       └── test-validation-queries.sql   # Suite de validación SQL e inmutabilidad WORM
 ├── docker/
+│   ├── mosquitto/                        # Configuración mTLS, ACL por vehículo y scripts de certs locales
 │   └── postgres/00_init_roles_dev.sql    # Inicialización local de roles sin claves quemadas
 ├── docs/
 │   ├── adr/                              # Decisiones de arquitectura (ADR-001, ADR-002)
@@ -227,7 +246,7 @@ npm run start:dev
 │       ├── transport-companies/          # Soporte de empresas transportadoras
 │       ├── trips/                        # Gestión base de viajes
 │       ├── passengers/                   # Issue #11: Pasajeros ocasionales y reasignación transaccional de cupos
-│       ├── telemetry/                    # Base Sprint 3 (fuera de alcance)
+│       ├── telemetry/                    # Issue #12: Ingesta MQTT TLS/mTLS, validación, batch particionado y fallback HTTPS
 │       ├── tracking/                     # Base Sprint 3 (fuera de alcance)
 │       ├── notifications/                # Base Sprint 3 (usado por eventos de custodia/asistencia)
 │       ├── offline/                      # Base Sprint 4 (fuera de alcance)
@@ -256,6 +275,7 @@ npm run start:dev
   - [Receptores de entrega, desembarque y retorno seguro](docs/modules/delivery-recipients.md)
   - [Motor de protección preventiva contra alertas judiciales](docs/modules/judicial-alerts.md)
   - [Pasajeros ocasionales y reasignación de cupos](docs/modules/occasional-passengers.md)
+  - [Telemetría IoT vehicular vía MQTT y almacenamiento particionado](docs/modules/telemetry.md)
 - **Gobernanza y flujo de trabajo:**
   - Política de seguridad: [SECURITY.md](SECURITY.md)
   - Guía de contribución: [CONTRIBUTING.md](CONTRIBUTING.md)

@@ -24,7 +24,11 @@ build/
 *.pem
 *.key
 *.cert
+*.crt
+*.srl
 secrets/
+docker/mosquitto/certs/
+docker/mosquitto/passwd
 !.env.example
 
 # IDE & Operating System Artifacts

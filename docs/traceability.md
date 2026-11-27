@@ -1,8 +1,8 @@
-# Matriz de Trazabilidad — Issues #1 a #11
+# Matriz de Trazabilidad — Issues #1 a #12
 
-Trazabilidad entre los issues implementados (Sprints 0, 1 y 2), los módulos del backend y su documentación técnica.
+Trazabilidad entre los issues implementados (Sprints 0, 1, 2 y primer issue del Sprint 3), los módulos del backend y su documentación técnica.
 
-> **Fuera de alcance:** el issue `#12` (y posteriores) no forma parte de esta entrega documental.
+> **Fuera de alcance:** el issue `#13` (y posteriores) no forma parte de esta entrega documental.
 
 ## Tabla Issue → Módulo → Documento
 
@@ -19,6 +19,7 @@ Trazabilidad entre los issues implementados (Sprints 0, 1 y 2), los módulos del
 | `#9` | Sprint 2 | Receptores de entrega, desembarque y retorno seguro | `src/modules/attendance/`, `db/migrations/V016` | [delivery-recipients.md](modules/delivery-recipients.md) | Documentado |
 | `#10` | Sprint 2 | Motor de protección preventiva contra alertas judiciales activas | `src/modules/custody/judicial-alerts/`, `src/modules/attendance/`, `src/modules/notifications/`, `db/migrations/V017` | [judicial-alerts.md](modules/judicial-alerts.md) | Documentado |
 | `#11` | Sprint 2 | Gestión transaccional de pasajeros ocasionales y reasignación de cupos | `src/modules/passengers/`, `src/config/env.validation.ts`, `db/migrations/V018` | [occasional-passengers.md](modules/occasional-passengers.md) | Documentado |
+| `#12` | Sprint 3 | Ingesta de telemetría IoT vehicular vía broker MQTT y almacenamiento particionado | `src/modules/telemetry/`, `src/config/env.validation.ts`, `docker/mosquitto/`, `db/docker-compose.yml`, `db/migrations/V019` | [telemetry.md](modules/telemetry.md), [README.md](../README.md) | Documentado |
 
 ---
 
